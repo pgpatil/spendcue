@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{
   --bg:#f4f5f7; --card:#ffffff; --sub:#fafafa;
@@ -162,9 +163,19 @@ tbody tr:hover{background:var(--sub)}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--accent-d);color:#fff;padding:9px 16px;border-radius:9px;font-size:12.5px;box-shadow:0 6px 18px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 .hidden{display:none!important}
+
+/* google drive sync */
+#reauthbar{background:var(--amb);color:#26210c;font-size:13px;padding:9px 16px;display:flex;align-items:center;justify-content:center;gap:10px;text-align:center}
+#reauthbar button{background:#26210c;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600}
+.sync-status{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--t3);margin-bottom:12px}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--t4);flex:none}
+.sync-dot.on{background:var(--grn)}
+.sync-dot.err{background:var(--red)}
+.sync-actions{display:flex;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
+<div id="reauthbar" hidden>Your Google Drive session expired. <button id="reauthBtn">Reconnect</button></div>
 <div class="wrap">
 
   <div class="top">
@@ -278,6 +289,7 @@ tbody tr:hover{background:var(--sub)}
     <div class="tabs">
       <div class="tab active" data-tab="general">General</div>
       <div class="tab" data-tab="budgets">Budgets</div>
+      <div class="tab" data-tab="sync">Sync</div>
       <div class="tab" data-tab="data">Data</div>
     </div>
 
@@ -289,6 +301,19 @@ tbody tr:hover{background:var(--sub)}
     </div>
 
     <div id="tabBudgets" class="settings-list hidden"></div>
+
+    <div id="tabSync" class="settings-list hidden">
+      <div class="sync-status"><span class="sync-dot" id="syncDot"></span><span id="syncStatusText">Not connected</span></div>
+      <p style="font-size:12px;color:var(--t4);margin:0 0 12px">
+        Connect your own Google account to back up and sync your expenses to your Drive.
+        Each person connects their own account — this does not share data between family members.
+      </p>
+      <div class="sync-actions">
+        <button class="btn primary" id="btnGConnect">Connect Google Drive</button>
+        <button class="btn hidden" id="btnGSyncNow">Sync now</button>
+        <button class="btn danger hidden" id="btnGDisconnect">Disconnect</button>
+      </div>
+    </div>
 
     <div id="tabData" class="settings-list hidden">
       <button class="btn" id="btnExportJson">Export all data (JSON)</button>
@@ -343,6 +368,7 @@ function load(){
 }
 function save(){
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e){ toast("Couldn't save — storage may be full."); }
+  if (typeof gScheduleSync === "function") gScheduleSync();
 }
 function uid(){
   if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -788,6 +814,7 @@ function openSettings(){
   $("setCurrency").value = state.settings.currency;
   $("setTheme").value = state.settings.theme;
   renderBudgetSettings();
+  gRenderStatus();
   $("ovSettings").hidden = false;
 }
 $("btnSettings").addEventListener("click", openSettings);
@@ -798,7 +825,7 @@ document.querySelectorAll(".tab").forEach(function(tab){
   tab.addEventListener("click", function(){
     document.querySelectorAll(".tab").forEach(function(t){ t.classList.remove("active"); });
     tab.classList.add("active");
-    ["general","budgets","data"].forEach(function(name){
+    ["general","budgets","sync","data"].forEach(function(name){
       $("tab"+name.charAt(0).toUpperCase()+name.slice(1)).classList.toggle("hidden", name !== tab.dataset.tab);
     });
   });
@@ -861,6 +888,264 @@ $("btnResetAll").addEventListener("click", function(){
   applyTheme(); renderAll();
   $("ovSettings").hidden = true;
   toast("All data erased.");
+});
+
+/* ---------- Google Drive sync ---------- */
+/* Each browser/account pair connects its own personal Google account and
+   syncs to a single JSON file the app creates in that account's Drive
+   (drive.file scope — the app can only see files it created, nothing else
+   in the user's Drive). This is per-account backup/sync, not a shared
+   ledger between family members: each person's data stays in their own
+   Drive unless they explicitly export/import a file to share it. */
+
+var GOOGLE_CLIENT_ID = "YOUR_GOOGLE_OAUTH_CLIENT_ID.apps.googleusercontent.com";
+var GOOGLE_SCOPES = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email";
+var GDRIVE_KEY = "spendcue_gdrive_v1";
+var GDRIVE_FILENAME = "spendcue-data.json";
+
+var gTokenClient = null;
+var gState = { connected:false, email:null, fileId:null, accessToken:null, tokenExpiresAt:0, lastRemoteModified:null, lastSyncAt:null, needsReauth:false };
+var gPushTimer = null, gPollTimer = null, gRenewTimer = null;
+var gSilentAttempt = false;
+
+function gLoad(){
+  var raw = null;
+  try { raw = localStorage.getItem(GDRIVE_KEY); } catch(e){}
+  if (raw){
+    try {
+      var d = JSON.parse(raw);
+      gState.connected = !!d.connected; gState.email = d.email||null; gState.fileId = d.fileId||null;
+    } catch(e){}
+  }
+}
+function gPersist(){
+  try { localStorage.setItem(GDRIVE_KEY, JSON.stringify({connected:gState.connected, email:gState.email, fileId:gState.fileId})); } catch(e){}
+}
+
+function gRenderStatus(){
+  var dot = $("syncDot"), text = $("syncStatusText");
+  var btnConnect = $("btnGConnect"), btnSync = $("btnGSyncNow"), btnDis = $("btnGDisconnect");
+  if (!dot) return;
+  if (gState.connected && !gState.needsReauth){
+    dot.className = "sync-dot on";
+    text.textContent = "Connected as " + gState.email + (gState.lastSyncAt ? " — synced " + gRelTime(gState.lastSyncAt) : " — not yet synced");
+    btnConnect.classList.add("hidden"); btnSync.classList.remove("hidden"); btnDis.classList.remove("hidden");
+  } else if (gState.connected && gState.needsReauth){
+    dot.className = "sync-dot err";
+    text.textContent = "Session expired for " + gState.email + " — reconnect to keep syncing";
+    btnConnect.classList.remove("hidden"); btnConnect.textContent = "Reconnect Google Drive";
+    btnSync.classList.add("hidden"); btnDis.classList.remove("hidden");
+  } else {
+    dot.className = "sync-dot";
+    text.textContent = "Not connected";
+    btnConnect.classList.remove("hidden"); btnConnect.textContent = "Connect Google Drive";
+    btnSync.classList.add("hidden"); btnDis.classList.add("hidden");
+  }
+  $("reauthbar").hidden = !(gState.connected && gState.needsReauth);
+}
+function gRelTime(iso){
+  var s = Math.round((Date.now() - new Date(iso).getTime())/1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.round(s/60) + "m ago";
+  if (s < 86400) return Math.round(s/3600) + "h ago";
+  return Math.round(s/86400) + "d ago";
+}
+
+function gInitTokenClient(){
+  if (gTokenClient || typeof google === "undefined" || !google.accounts) return;
+  gTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: GOOGLE_SCOPES,
+    callback: function(resp){
+      var wasSilent = gSilentAttempt; gSilentAttempt = false;
+      if (resp.error){
+        gState.needsReauth = true; gRenderStatus();
+        if (!wasSilent) toast("Google sign-in didn't complete.");
+        return;
+      }
+      gState.accessToken = resp.access_token;
+      gState.tokenExpiresAt = Date.now() + (Number(resp.expires_in)||3300)*1000;
+      gState.needsReauth = false;
+      gAfterAuth(wasSilent);
+    }
+  });
+}
+
+function gConnect(){
+  if (GOOGLE_CLIENT_ID.indexOf("YOUR_GOOGLE_OAUTH_CLIENT_ID") === 0){
+    toast("Google Drive isn't configured yet — add a Client ID first.");
+    return;
+  }
+  gInitTokenClient();
+  if (!gTokenClient){ toast("Google sign-in is still loading — try again in a second."); return; }
+  gTokenClient.requestAccessToken({ prompt: gState.connected ? "" : "consent" });
+}
+
+function gAfterAuth(silent){
+  gApiFetch("https://www.googleapis.com/oauth2/v3/userinfo").then(function(info){
+    gState.email = info.email;
+    gState.connected = true;
+    gPersist();
+    gRenderStatus();
+    return gEnsureFile();
+  }).then(function(){
+    gStartTimers();
+    if (!silent) toast("Connected to Google Drive.");
+  }).catch(function(err){
+    console.error(err);
+    if (!silent) toast("Couldn't connect to Google Drive.");
+  });
+}
+
+function gApiFetch(url, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers, { Authorization: "Bearer " + gState.accessToken });
+  return fetch(url, opts).then(function(res){
+    if (res.status === 401){
+      gState.needsReauth = true; gRenderStatus();
+      throw new Error("unauthorized");
+    }
+    if (!res.ok) throw new Error("http " + res.status);
+    var ct = res.headers.get("content-type")||"";
+    return ct.indexOf("application/json") !== -1 ? res.json() : res.text();
+  });
+}
+
+function gEnsureFile(){
+  if (gState.fileId){
+    return gApiFetch("https://www.googleapis.com/drive/v3/files/" + gState.fileId + "?fields=id,modifiedTime")
+      .catch(function(){ gState.fileId = null; return gEnsureFile(); });
+  }
+  var q = encodeURIComponent("name='" + GDRIVE_FILENAME + "' and trashed=false");
+  return gApiFetch("https://www.googleapis.com/drive/v3/files?q=" + q + "&spaces=drive&fields=files(id,modifiedTime)")
+    .then(function(res){
+      if (res.files && res.files.length){
+        gState.fileId = res.files[0].id;
+        gPersist();
+        return gResolveFirstConnect(res.files[0].id);
+      }
+      return gCreateFile();
+    });
+}
+
+function gCreateFile(){
+  var metadata = { name: GDRIVE_FILENAME, mimeType: "application/json" };
+  var body = new Blob(
+    ['--sep\r\nContent-Type: application/json\r\n\r\n' + JSON.stringify(metadata) +
+     '\r\n--sep\r\nContent-Type: application/json\r\n\r\n' + JSON.stringify(state) + '\r\n--sep--'],
+    { type: "multipart/related; boundary=sep" }
+  );
+  return gApiFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime", {
+    method: "POST", body: body
+  }).then(function(res){
+    gState.fileId = res.id;
+    gState.lastRemoteModified = res.modifiedTime;
+    gState.lastSyncAt = new Date().toISOString();
+    gPersist(); gRenderStatus();
+  });
+}
+
+function gResolveFirstConnect(fileId){
+  return gApiFetch("https://www.googleapis.com/drive/v3/files/" + fileId + "?alt=media").then(function(remote){
+    var remoteHasData = remote && Array.isArray(remote.expenses) && remote.expenses.length > 0;
+    var localHasData = state.expenses.length > 0;
+    if (remoteHasData && !localHasData){
+      state = remote; save.call(null); applyTheme(); populateCategorySelects(); renderAll();
+      toast("Loaded your existing data from Google Drive.");
+    } else if (remoteHasData && localHasData){
+      var useCloud = confirm(
+        "This Google account already has Spendcue data saved.\n\n" +
+        "OK = use the Drive version (replaces what's on this device)\n" +
+        "Cancel = keep this device's data (replaces what's in Drive)"
+      );
+      if (useCloud){
+        state = remote; localStorage.setItem(STORE_KEY, JSON.stringify(state)); applyTheme(); populateCategorySelects(); renderAll();
+      } else {
+        return gPushNow();
+      }
+    } else {
+      return gPushNow();
+    }
+    gState.lastSyncAt = new Date().toISOString();
+    gRenderStatus();
+  });
+}
+
+function gScheduleSync(){
+  if (!gState.connected) return;
+  clearTimeout(gPushTimer);
+  gPushTimer = setTimeout(gPushNow, 1200);
+}
+
+function gPushNow(){
+  if (!gState.connected || !gState.fileId) return Promise.resolve();
+  return gApiFetch("https://www.googleapis.com/upload/drive/v3/files/" + gState.fileId + "?uploadType=media&fields=modifiedTime", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(state)
+  }).then(function(res){
+    gState.lastRemoteModified = res.modifiedTime;
+    gState.lastSyncAt = new Date().toISOString();
+    gRenderStatus();
+  }).catch(function(err){ console.error(err); });
+}
+
+function gPollForRemoteChanges(){
+  if (!gState.connected || !gState.fileId || gState.needsReauth) return;
+  gApiFetch("https://www.googleapis.com/drive/v3/files/" + gState.fileId + "?fields=modifiedTime").then(function(res){
+    if (gState.lastRemoteModified && res.modifiedTime !== gState.lastRemoteModified){
+      return gApiFetch("https://www.googleapis.com/drive/v3/files/" + gState.fileId + "?alt=media").then(function(remote){
+        if (remote && Array.isArray(remote.expenses)){
+          state = remote; localStorage.setItem(STORE_KEY, JSON.stringify(state));
+          gState.lastRemoteModified = res.modifiedTime;
+          gState.lastSyncAt = new Date().toISOString();
+          applyTheme(); populateCategorySelects(); renderAll(); gRenderStatus();
+          toast("Synced changes from another device.");
+        }
+      });
+    }
+  }).catch(function(err){ console.error(err); });
+}
+
+function gRenewTokenSilently(){
+  if (!gState.connected || !gTokenClient) return;
+  gSilentAttempt = true;
+  gTokenClient.requestAccessToken({ prompt: "" });
+}
+
+function gStartTimers(){
+  clearInterval(gPollTimer); clearInterval(gRenewTimer);
+  gPollTimer = setInterval(gPollForRemoteChanges, 20000);
+  gRenewTimer = setInterval(gRenewTokenSilently, 50*60*1000);
+}
+
+function gDisconnect(){
+  if (gState.accessToken && typeof google !== "undefined" && google.accounts){
+    google.accounts.oauth2.revoke(gState.accessToken, function(){});
+  }
+  clearInterval(gPollTimer); clearInterval(gRenewTimer); clearTimeout(gPushTimer);
+  gState = { connected:false, email:null, fileId:null, accessToken:null, tokenExpiresAt:0, lastRemoteModified:null, lastSyncAt:null, needsReauth:false };
+  gPersist(); gRenderStatus();
+  toast("Disconnected from Google Drive.");
+}
+
+$("btnGConnect").addEventListener("click", gConnect);
+$("btnGSyncNow").addEventListener("click", function(){ gPushNow().then(function(){ toast("Synced."); }); });
+$("btnGDisconnect").addEventListener("click", function(){
+  if (confirm("Stop syncing to Google Drive on this device? Your data stays in Drive and stays on this device — this only disconnects the link.")) gDisconnect();
+});
+$("reauthBtn").addEventListener("click", gConnect);
+
+gLoad();
+window.addEventListener("load", function(){
+  setTimeout(function(){
+    gInitTokenClient();
+    gRenderStatus();
+    if (gState.connected && gTokenClient){
+      gSilentAttempt = true;
+      gTokenClient.requestAccessToken({ prompt: "" });
+    }
+  }, 300);
 });
 
 /* ---------- toast ---------- */
