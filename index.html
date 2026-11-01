@@ -446,7 +446,12 @@ tbody tr:hover{background:var(--sub)}
     </div>
 
     <div id="tabGeneral" class="settings-list">
-      <div class="settings-row"><span class="name">Currency symbol</span><input type="text" id="setCurrency" style="width:70px;text-align:center;border:1px solid var(--bdr2);background:var(--bg);color:var(--t1);border-radius:8px;padding:7px"></div>
+      <div class="settings-row"><span class="name">Currency</span>
+        <select id="setCurrency"></select>
+      </div>
+      <div class="settings-row hidden" id="setCurCustomRow"><span class="name">Symbol to use</span>
+        <input type="text" id="setCurCustom" maxlength="6" placeholder="e.g. kr" style="width:90px;text-align:center;border:1px solid var(--bdr2);background:var(--bg);color:var(--t1);border-radius:8px;padding:7px">
+      </div>
       <div class="settings-row"><span class="name">Theme</span>
         <select id="setTheme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
       </div>
@@ -542,6 +547,33 @@ function kindOf(r){ return r.kind || "expense"; }
 function catsFor(kind){ return kind === "expense" ? CATS : IN_CATS; }
 var KINDS = [["expense","Spent"],["income","Received"],["due","Yet to receive"]];
 
+// Symbol is what gets stored (older saves hold a bare symbol, and so do
+// synced Drive files), so the list is keyed by symbol and carries the locale
+// to format with — Indian grouping for the rupee, 1,00,000 not 100,000.
+var CURRENCIES = [
+  {sym:"\u20b9", code:"INR", name:"Indian Rupee", locale:"en-IN"},
+  {sym:"$",       code:"USD", name:"US Dollar",     locale:"en-US"},
+  {sym:"\u20ac", code:"EUR", name:"Euro",          locale:"de-DE"},
+  {sym:"\u00a3", code:"GBP", name:"British Pound", locale:"en-GB"},
+  {sym:"\u00a5", code:"JPY", name:"Japanese Yen",  locale:"ja-JP"},
+  {sym:"A$",      code:"AUD", name:"Australian Dollar", locale:"en-AU"},
+  {sym:"C$",      code:"CAD", name:"Canadian Dollar",   locale:"en-CA"},
+  {sym:"S$",      code:"SGD", name:"Singapore Dollar",  locale:"en-SG"},
+  {sym:"AED ",    code:"AED", name:"UAE Dirham",    locale:"en-AE"},
+  {sym:"CHF ",    code:"CHF", name:"Swiss Franc",   locale:"de-CH"},
+  {sym:"R",       code:"ZAR", name:"South African Rand", locale:"en-ZA"},
+  {sym:"\u00a5", code:"CNY", name:"Chinese Yuan",  locale:"zh-CN"}
+];
+// Yen and Yuan share a symbol, so the chosen code is remembered too; older
+// saves have no code and still resolve by symbol alone.
+function currencyInfo(sym, code){
+  var i;
+  if (code) for (i=0;i<CURRENCIES.length;i++) if (CURRENCIES[i].code === code) return CURRENCIES[i];
+  for (i=0;i<CURRENCIES.length;i++) if (CURRENCIES[i].sym === sym) return CURRENCIES[i];
+  return null;
+}
+function currentCurrency(){ return currencyInfo(state.settings.currency, state.settings.currencyCode); }
+
 var STORE_KEY = "spendcue_data_v1";
 var state = load();
 
@@ -554,7 +586,7 @@ function load(){
   if (!d.recurring) d.recurring = [];
   if (!d.budgets) d.budgets = {};
   if (!d.settings) d.settings = {};
-  if (!d.settings.currency) d.settings.currency = "$";
+  if (!d.settings.currency) d.settings.currency = "\u20b9";
   if (!d.settings.theme) d.settings.theme = "system";
   return d;
 }
@@ -569,7 +601,13 @@ function uid(){
 
 function fmt(n){
   n = Number(n) || 0;
-  var s = n.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  var info = currentCurrency();
+  var s;
+  try {
+    s = n.toLocaleString(info ? info.locale : undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  } catch(e){
+    s = n.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
   return state.settings.currency + s;
 }
 function pad2(n){ return n<10 ? "0"+n : ""+n; }
@@ -1526,7 +1564,7 @@ function parseCsvLine(line){
 
 /* ---------- settings modal ---------- */
 function openSettings(){
-  $("setCurrency").value = state.settings.currency;
+  renderCurrencyPicker();
   $("setTheme").value = state.settings.theme;
   $("setLink").checked = state.settings.linkSpending !== false;
   renderBudgetSettings();
@@ -1548,8 +1586,35 @@ document.querySelectorAll(".tab").forEach(function(tab){
   });
 });
 
+function renderCurrencyPicker(){
+  var cur = state.settings.currency;
+  var known = currentCurrency();
+  $("setCurrency").innerHTML = CURRENCIES.map(function(c){
+    return '<option value="' + c.code + '"' + (known && known.code === c.code ? ' selected' : '') + '>' +
+      escapeHtml(c.sym.trim()) + "  " + c.code + " — " + c.name + '</option>';
+  }).join("") + '<option value="__custom"' + (known ? '' : ' selected') + '>Something else…</option>';
+  $("setCurCustomRow").classList.toggle("hidden", !!known);
+  $("setCurCustom").value = known ? "" : cur;
+}
 $("setCurrency").addEventListener("change", function(){
-  state.settings.currency = this.value.trim() || "$";
+  if (this.value === "__custom"){
+    $("setCurCustomRow").classList.remove("hidden");
+    $("setCurCustom").value = state.settings.currency;
+    $("setCurCustom").focus();
+    return;
+  }
+  var c = currencyInfo(null, this.value);
+  if (!c) return;
+  state.settings.currency = c.sym;
+  state.settings.currencyCode = c.code;
+  $("setCurCustomRow").classList.add("hidden");
+  save(); renderAll();
+});
+$("setCurCustom").addEventListener("input", function(){
+  var v = this.value.trim();
+  if (!v) return;                       // an empty box would leave amounts unlabelled
+  state.settings.currency = v;
+  delete state.settings.currencyCode;   // a custom symbol has no locale of its own
   save(); renderAll();
 });
 $("setLink").addEventListener("change", function(){
