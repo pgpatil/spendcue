@@ -82,6 +82,7 @@ input,select{font:inherit}
 .card .v{font-size:20px;font-weight:700;letter-spacing:-.01em}
 .card .v.red{color:var(--red)}
 .card .v.grn{color:var(--grn)}
+.card .v.amb{color:var(--amb)}
 .card .sub{font-size:12px;color:var(--t3);margin-top:3px}
 
 /* panels */
@@ -104,7 +105,12 @@ input,select{font:inherit}
 .trend{display:flex;align-items:flex-end;gap:8px;height:120px;padding-top:6px}
 .trend-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%}
 .trend-bar{width:100%;max-width:34px;border-radius:5px 5px 2px 2px;background:var(--accent);min-height:2px}
-.trend-bar.now{background:var(--grn)}
+.trend-bar.now{background:var(--accent-d)}
+.trend-pair{display:flex;align-items:flex-end;justify-content:center;gap:3px;width:100%;height:100%}
+.trend-bar.in{background:var(--grn)}
+.keydot{display:inline-block;width:8px;height:8px;border-radius:2px;margin:0 3px 0 7px;vertical-align:0}
+.keydot.sp{background:var(--accent)}
+.keydot.in{background:var(--grn)}
 .trend-lbl{font-size:10.5px;color:var(--t4)}
 
 /* budgets */
@@ -138,6 +144,9 @@ tbody tr:hover{background:var(--sub)}
 .cat-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2)}
 .cat-dot{width:8px;height:8px;border-radius:50%;flex:none}
 .amt-cell{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.amt-cell.pos{color:var(--grn)}
+.amt-cell.owed{color:var(--amb)}
+.owed-tag{font-size:9.5px;font-weight:700;border:1px solid var(--amb);color:var(--amb);border-radius:4px;padding:1px 4px;margin-left:5px;vertical-align:1px}
 .note-cell{color:var(--t3);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row-actions{display:flex;gap:6px;justify-content:flex-end}
 .row-actions button{border:1px solid var(--bdr);background:var(--sub);color:var(--t3);width:26px;height:26px;border-radius:7px}
@@ -151,6 +160,17 @@ tbody tr:hover{background:var(--sub)}
 .linkish{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;padding:0;text-decoration:underline;text-underline-offset:2px}
 .linkish:hover{color:var(--accent-d)}
 .counter .hintline{font-size:11.5px;color:var(--t4);margin:4px 0 10px}
+.seg{display:flex;gap:0;margin-top:10px;border:1px solid var(--bdr2);border-radius:9px;overflow:hidden}
+.seg button{flex:1;border:none;border-right:1px solid var(--bdr2);background:var(--card);color:var(--t3);padding:8px 6px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.seg button:last-child{border-right:none}
+.seg button:hover{background:var(--sub)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.seg button[aria-pressed="true"].k-income{background:var(--grn)}
+.seg button[aria-pressed="true"].k-due{background:var(--amb)}
+.amtbox.in-income{border-color:var(--grn)}
+.amtbox.in-due{border-color:var(--amb)}
+.tile.freq.t-income{border-color:var(--grn);background:var(--grn-l)}
+.tile.freq.t-due{border-color:var(--amb);background:var(--amb-l)}
 .amtrow{display:flex;gap:8px;align-items:stretch}
 .amtbox{flex:1;display:flex;align-items:center;gap:6px;border:1px solid var(--bdr2);border-radius:10px;background:var(--bg);padding:0 12px;min-width:0}
 .amtbox.flash{animation:amtflash .5s ease}
@@ -182,6 +202,19 @@ tbody tr:hover{background:var(--sub)}
 .tline .tcat{display:flex;align-items:center;gap:7px;flex:1;min-width:0}
 .tline .tname{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tline .tamt{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tamt.pos,.ticket-head b.pos{color:var(--grn)}
+/* yet to receive */
+.duerow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bdr)}
+.duerow:last-child{border-bottom:none}
+.duemain{flex:1;min-width:0}
+.duename{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.duewhen{font-size:11.5px;color:var(--t4);margin-top:2px}
+.duewhen.late{color:var(--red);font-weight:600}
+.dueamt{font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.btn-got{border:1px solid var(--grn);background:var(--grn-l);color:var(--grn);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.btn-got:hover{background:var(--grn);color:#fff}
+.duedrop{border:1px solid var(--bdr);background:var(--card);color:var(--t4);border-radius:8px;width:28px;height:28px;flex:none}
+.duedrop:hover{color:var(--red);border-color:var(--red-l)}
 .stepper{display:flex;align-items:center;gap:2px;flex:none}
 .stepper button{width:26px;height:26px;border:1px solid var(--bdr2);background:var(--card);color:var(--t2);border-radius:7px;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center}
 .stepper button:hover{background:var(--sub)}
@@ -252,10 +285,11 @@ tbody tr:hover{background:var(--sub)}
 
   <div class="counter" id="counter">
     <div class="counter-head">
-      <h2>Add an expense</h2>
+      <h2 id="qTitle">Add an expense</h2>
       <button class="linkish" id="btnAdd" title="Add with a note, another date or payment method">More fields</button>
     </div>
-    <p class="hintline">Type the amount, tap a category. Enter adds the first match.</p>
+    <div class="seg" id="qKinds" role="group" aria-label="What kind of entry"></div>
+    <p class="hintline" id="qHint">Type the amount, tap a category. Enter adds the first match.</p>
     <div class="amtrow">
       <label class="amtbox" id="amtBox">
         <span class="cur" id="amtCur">$</span>
@@ -271,9 +305,11 @@ tbody tr:hover{background:var(--sub)}
 
   <div class="cards">
     <div class="card"><div class="k">Spent this month</div><div class="v" id="cSpent">$0.00</div><div class="sub" id="cSpentSub">0 expenses</div></div>
+    <div class="card"><div class="k">Received this month</div><div class="v grn" id="cIn">$0.00</div><div class="sub" id="cInSub">0 receipts</div></div>
+    <div class="card"><div class="k">Net this month</div><div class="v" id="cNet">$0.00</div><div class="sub" id="cNetSub">received less spent</div></div>
+    <div class="card"><div class="k">Yet to receive</div><div class="v" id="cDue">$0.00</div><div class="sub" id="cDueSub">nothing outstanding</div></div>
     <div class="card"><div class="k">Budget remaining</div><div class="v" id="cRemain">$0.00</div><div class="sub" id="cRemainSub">of $0.00 budgeted</div></div>
     <div class="card"><div class="k">Top category</div><div class="v" id="cTop">—</div><div class="sub" id="cTopSub">—</div></div>
-    <div class="card"><div class="k">Daily average</div><div class="v" id="cAvg">$0.00</div><div class="sub" id="cAvgSub">this month so far</div></div>
   </div>
 
   <div class="panels">
@@ -285,9 +321,14 @@ tbody tr:hover{background:var(--sub)}
       </div>
     </div>
     <div class="panel">
-      <h2>Last 6 months</h2>
+      <h2>Last 6 months <small id="trendKey" class="hidden"><span class="keydot sp"></span>spent <span class="keydot in"></span>received</small></h2>
       <div class="trend" id="trend"></div>
     </div>
+  </div>
+
+  <div class="panel" id="duePanel" style="margin-bottom:16px">
+    <h2>Yet to receive <small id="dueTotalLbl"></small></h2>
+    <div id="dueList"></div>
   </div>
 
   <div class="panel" id="budgetPanel" style="margin-bottom:16px">
@@ -297,6 +338,7 @@ tbody tr:hover{background:var(--sub)}
 
   <div class="toolbar">
     <input type="text" class="search" id="fSearch" placeholder="Search notes…">
+    <select id="fKind"><option value="">Everything</option><option value="expense">Spent</option><option value="income">Received</option><option value="due">Yet to receive</option></select>
     <select id="fCategory"><option value="">All categories</option></select>
     <input type="date" id="fFrom" title="From">
     <input type="date" id="fTo" title="To">
@@ -332,21 +374,29 @@ tbody tr:hover{background:var(--sub)}
     <h3 id="expModalTitle">Add expense</h3>
     <div class="field-row">
       <div class="field"><label>Amount</label><input type="number" id="exAmount" step="0.01" min="0" inputmode="decimal" placeholder="0.00"></div>
-      <div class="field"><label>Date</label><input type="date" id="exDate"></div>
+      <div class="field"><label id="exDateLabel">Date</label><input type="date" id="exDate"></div>
     </div>
     <div class="field">
-      <label>Category</label>
+      <label>This is</label>
+      <select id="exKind">
+        <option value="expense">Money spent</option>
+        <option value="income">Money received</option>
+        <option value="due">Money yet to receive</option>
+      </select>
+    </div>
+    <div class="field">
+      <label id="exCatLabel">Category</label>
       <select id="exCategory"></select>
     </div>
     <div class="field-row">
-      <div class="field"><label>Payment method</label>
+      <div class="field" id="exMethodWrap"><label>Payment method</label>
         <select id="exMethod">
           <option>Card</option><option>Cash</option><option>Bank transfer</option><option>UPI</option><option>Other</option>
         </select>
       </div>
-      <div class="field"><label>Note (optional)</label><input type="text" id="exNote" placeholder="e.g. Groceries at Trader Joe's"></div>
+      <div class="field"><label>Note (optional)</label><input type="text" id="exNote" placeholder="e.g. Groceries at the market"></div>
     </div>
-    <label class="checkline"><input type="checkbox" id="exRecurring"> Repeats monthly</label>
+    <label class="checkline" id="exRecurWrap"><input type="checkbox" id="exRecurring"> Repeats monthly</label>
     <div class="modal-actions">
       <button class="btn" id="exCancel">Cancel</button>
       <button class="btn primary" id="exSave">Save</button>
@@ -435,7 +485,29 @@ var CATS = [
   {id:"subscriptions", name:"Subscriptions", color:"#9a6bd7"},
   {id:"other", name:"Other", color:"#8a8f99"}
 ];
-function catById(id){ for (var i=0;i<CATS.length;i++) if (CATS[i].id===id) return CATS[i]; return CATS[CATS.length-1]; }
+// Money coming in has its own categories — "Groceries" makes no sense as a
+// source of income. Ids are prefixed so one lookup can serve both sets.
+var IN_CATS = [
+  {id:"in_salary", name:"Salary", color:"#1c8a5a"},
+  {id:"in_freelance", name:"Freelance", color:"#2f9e6b"},
+  {id:"in_business", name:"Business", color:"#3d7fd1"},
+  {id:"in_refund", name:"Refund", color:"#4aa8d8"},
+  {id:"in_lent", name:"Money lent back", color:"#7a5cc4"},
+  {id:"in_interest", name:"Interest", color:"#2aa6a0"},
+  {id:"in_gift", name:"Gift", color:"#d1518b"},
+  {id:"in_rent", name:"Rent received", color:"#c9932f"},
+  {id:"in_sale", name:"Sale", color:"#9a6bd7"},
+  {id:"in_other", name:"Other income", color:"#8a8f99"}
+];
+var ALL_CATS = CATS.concat(IN_CATS);
+function catById(id){
+  for (var i=0;i<ALL_CATS.length;i++) if (ALL_CATS[i].id===id) return ALL_CATS[i];
+  return (String(id||"").indexOf("in_") === 0) ? IN_CATS[IN_CATS.length-1] : CATS[CATS.length-1];
+}
+// Records written before income existed have no kind; they are all expenses.
+function kindOf(r){ return r.kind || "expense"; }
+function catsFor(kind){ return kind === "expense" ? CATS : IN_CATS; }
+var KINDS = [["expense","Spent"],["income","Received"],["due","Yet to receive"]];
 
 var STORE_KEY = "spendcue_data_v1";
 var state = load();
@@ -481,7 +553,7 @@ function ensureRecurringForMonth(year, month){
       var daysInMonth = new Date(year, month+1, 0).getDate();
       var day = Math.min(tpl.day, daysInMonth);
       state.expenses.push({
-        id: uid(), amount: tpl.amount, category: tpl.category, note: tpl.note,
+        id: uid(), kind: tpl.kind || "expense", amount: tpl.amount, category: tpl.category, note: tpl.note,
         method: tpl.method, date: year+"-"+pad2(month+1)+"-"+pad2(day),
         recurring: true, sourceId: tpl.id
       });
@@ -493,7 +565,7 @@ function ensureRecurringForMonth(year, month){
 
 /* ---------- view state ---------- */
 var view = { year: new Date().getFullYear(), month: new Date().getMonth() };
-var filters = { search:"", category:"", from:"", to:"" };
+var filters = { search:"", category:"", from:"", to:"", kind:"" };
 var sortKey = "date", sortDir = -1;
 
 /* ---------- DOM refs ---------- */
@@ -508,10 +580,22 @@ function monthBounds(y,m){
   return {from:from, to:to};
 }
 
-function expensesInMonth(y,m){
+// Records of one kind inside a month. Dues are deliberately excluded from
+// month totals: money you are owed hasn't moved yet, so it belongs in the
+// outstanding figure, not in what you spent or received.
+function recordsInMonth(y,m,kind){
   var b = monthBounds(y,m);
-  return state.expenses.filter(function(e){ return e.date >= b.from && e.date <= b.to; });
+  return state.expenses.filter(function(e){
+    return kindOf(e) === kind && e.date >= b.from && e.date <= b.to;
+  });
 }
+function expensesInMonth(y,m){ return recordsInMonth(y,m,"expense"); }
+function incomeInMonth(y,m){ return recordsInMonth(y,m,"income"); }
+// Everything still owed to you, whatever month it was logged in.
+function outstandingDues(){
+  return state.expenses.filter(function(e){ return kindOf(e) === "due"; });
+}
+function sumOf(list){ return list.reduce(function(s,e){ return s + Number(e.amount); }, 0); }
 
 function renderMonthNav(){
   elMLabel.textContent = MONTH_NAMES[view.month] + " " + view.year;
@@ -519,9 +603,36 @@ function renderMonthNav(){
 
 function renderSummary(){
   var list = expensesInMonth(view.year, view.month);
-  var total = list.reduce(function(s,e){ return s+Number(e.amount); }, 0);
+  var total = sumOf(list);
+  var now = new Date();
+  var isCurrentMonth = (now.getFullYear()===view.year && now.getMonth()===view.month);
+  var dayCount = isCurrentMonth ? now.getDate() : new Date(view.year, view.month+1, 0).getDate();
   $("cSpent").textContent = fmt(total);
-  $("cSpentSub").textContent = list.length + " expense" + (list.length===1?"":"s");
+  $("cSpentSub").textContent = list.length + " expense" + (list.length===1?"":"s") +
+    (dayCount ? " · " + fmt(total/dayCount) + "/day" : "");
+
+  // received
+  var inList = incomeInMonth(view.year, view.month);
+  var inTotal = sumOf(inList);
+  $("cIn").textContent = fmt(inTotal);
+  $("cInSub").textContent = inList.length + " receipt" + (inList.length===1?"":"s");
+
+  // net
+  var net = inTotal - total;
+  var cNet = $("cNet");
+  cNet.textContent = (net < 0 ? "−" : "") + fmt(Math.abs(net));
+  cNet.className = "v " + (net < 0 ? "red" : "grn");
+  $("cNetSub").textContent = net < 0 ? "spent more than received" : "received less spent";
+
+  // yet to receive — outstanding whenever it was logged
+  var dues = outstandingDues();
+  var dueTotal = sumOf(dues);
+  var cDue = $("cDue");
+  cDue.textContent = fmt(dueTotal);
+  cDue.className = "v " + (dueTotal > 0 ? "amb" : "");
+  $("cDueSub").textContent = dues.length
+    ? dues.length + " outstanding" + (overdueCount(dues) ? " · " + overdueCount(dues) + " overdue" : "")
+    : "nothing outstanding";
 
   var budgetTotal = 0;
   Object.keys(state.budgets).forEach(function(k){ budgetTotal += Number(state.budgets[k])||0; });
@@ -542,11 +653,68 @@ function renderSummary(){
     $("cTop").textContent = "—"; $("cTopSub").textContent = "no expenses yet";
   }
 
+}
+
+// A due whose expected date has passed.
+function overdueCount(dues){
+  var t = todayStr();
+  return dues.filter(function(d){ return d.date < t; }).length;
+}
+
+/* ---------- yet to receive ----------
+   A due is money promised but not arrived. It stays out of the month's
+   spent and received totals until it is actually in hand; marking it
+   received turns it into income dated today, so it lands in the month it
+   really arrived rather than the month it was promised. */
+function renderDues(){
+  var dues = outstandingDues().slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  var panel = $("duePanel"), out = $("dueList");
+  if (!dues.length){ panel.style.display = "none"; return; }
+  panel.style.display = "";
+  $("dueTotalLbl").textContent = fmt(sumOf(dues)) + " across " + dues.length + " entr" + (dues.length===1?"y":"ies");
+  var t = todayStr();
+  out.innerHTML = dues.map(function(d){
+    var c = catById(d.category), late = d.date < t;
+    return '<div class="duerow">' +
+      '<span class="legend-dot" style="background:' + c.color + '"></span>' +
+      '<div class="duemain"><div class="duename">' + escapeHtml(c.name) +
+        (d.note ? ' · <span style="color:var(--t3)">' + escapeHtml(d.note) + '</span>' : '') + '</div>' +
+        '<div class="duewhen' + (late ? ' late' : '') + '">' + (late ? "overdue since " : "expected ") + d.date + '</div></div>' +
+      '<span class="dueamt">' + fmt(d.amount) + '</span>' +
+      '<button class="btn-got" data-got="' + d.id + '">Received</button>' +
+      '<button class="duedrop" data-duedrop="' + d.id + '" title="Remove">✕</button></div>';
+  }).join("");
+
+  out.querySelectorAll("[data-got]").forEach(function(b){
+    b.addEventListener("click", function(){ markReceived(b.dataset.got); });
+  });
+  out.querySelectorAll("[data-duedrop]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var d = state.expenses.find(function(x){ return x.id === b.dataset.duedrop; });
+      if (!d || !confirm("Remove this " + fmt(d.amount) + " you were owed?")) return;
+      state.expenses = state.expenses.filter(function(x){ return x.id !== b.dataset.duedrop; });
+      save(); renderAll(); toast("Removed.");
+    });
+  });
+}
+
+// The money arrived: it becomes income on the day it actually landed.
+function markReceived(id){
+  var d = state.expenses.find(function(x){ return x.id === id; });
+  if (!d) return;
+  var wasDate = d.date, wasCat = d.category;
+  d.kind = "income";
+  d.promisedFor = wasDate;        // keep when it had been expected
+  d.date = todayStr();
+  if (String(d.category).indexOf("in_") !== 0) d.category = "in_other";
+  save();
   var now = new Date();
-  var isCurrentMonth = (now.getFullYear()===view.year && now.getMonth()===view.month);
-  var dayCount = isCurrentMonth ? now.getDate() : new Date(view.year, view.month+1, 0).getDate();
-  $("cAvg").textContent = fmt(dayCount ? total/dayCount : 0);
-  $("cAvgSub").textContent = isCurrentMonth ? "this month so far" : "daily average";
+  view.year = now.getFullYear(); view.month = now.getMonth();
+  renderAll();
+  toast(fmt(d.amount) + " received", "Undo", function(){
+    d.kind = "due"; d.date = wasDate; d.category = wasCat; delete d.promisedFor;
+    save(); renderAll();
+  });
 }
 
 function renderDonut(){
@@ -612,19 +780,24 @@ function renderTrend(){
     var d = new Date(view.year, view.month - i, 1);
     months.push({y:d.getFullYear(), m:d.getMonth()});
   }
-  var totals = months.map(function(mo){
-    return expensesInMonth(mo.y, mo.m).reduce(function(s,e){ return s+Number(e.amount); }, 0);
-  });
-  var max = Math.max.apply(null, totals.concat([1]));
+  var spent = months.map(function(mo){ return sumOf(expensesInMonth(mo.y, mo.m)); });
+  var recd  = months.map(function(mo){ return sumOf(incomeInMonth(mo.y, mo.m)); });
+  var anyIncome = recd.some(function(v){ return v > 0; });
+  // one scale for both, so the two bars are comparable month to month
+  var max = Math.max.apply(null, spent.concat(recd).concat([1]));
   months.forEach(function(mo, i){
     var col = document.createElement("div");
     col.className = "trend-col";
-    var h = Math.max(2, Math.round(totals[i]/max*88));
     var isNow = (mo.y===view.year && mo.m===view.month);
-    col.innerHTML = '<div title="'+fmt(totals[i])+'" class="trend-bar'+(isNow?' now':'')+'" style="height:'+h+'px"></div>'+
-      '<div class="trend-lbl">'+MONTH_NAMES[mo.m].slice(0,3)+'</div>';
+    var hs = Math.max(2, Math.round(spent[i]/max*88));
+    var hr = Math.max(2, Math.round(recd[i]/max*88));
+    col.innerHTML = '<div class="trend-pair">' +
+      '<div title="spent ' + fmt(spent[i]) + '" class="trend-bar' + (isNow?' now':'') + '" style="height:'+hs+'px"></div>' +
+      (anyIncome ? '<div title="received ' + fmt(recd[i]) + '" class="trend-bar in" style="height:'+hr+'px"></div>' : '') +
+      '</div><div class="trend-lbl">'+MONTH_NAMES[mo.m].slice(0,3)+'</div>';
     el.appendChild(col);
   });
+  $("trendKey").classList.toggle("hidden", !anyIncome);
 }
 
 function renderBudgets(){
@@ -655,12 +828,24 @@ function renderBudgets(){
   });
 }
 
+function optionsFor(list, sel){
+  return list.map(function(c){
+    return '<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+c.name+'</option>';
+  }).join("");
+}
+// The filter offers whichever category set the chosen kind actually uses;
+// with no kind chosen it offers both, so nothing becomes unreachable.
 function populateCategorySelects(){
-  var selects = [$("fCategory"), $("exCategory")];
-  var tplBudget = $("tabBudgets");
-  $("fCategory").innerHTML = '<option value="">All categories</option>' +
-    CATS.map(function(c){ return '<option value="'+c.id+'">'+c.name+'</option>'; }).join("");
-  $("exCategory").innerHTML = CATS.map(function(c){ return '<option value="'+c.id+'">'+c.name+'</option>'; }).join("");
+  var keep = $("fCategory").value;
+  var forFilter = !filters.kind ? ALL_CATS : catsFor(filters.kind === "expense" ? "expense" : "income");
+  $("fCategory").innerHTML = '<option value="">All categories</option>' + optionsFor(forFilter, keep);
+  if ($("fCategory").value !== keep) { $("fCategory").value = ""; filters.category = ""; }
+  populateModalCategories();
+}
+function populateModalCategories(){
+  var k = $("exKind") ? $("exKind").value : "expense";
+  var sel = $("exCategory").value;
+  $("exCategory").innerHTML = optionsFor(catsFor(k === "expense" ? "expense" : "income"), sel);
 }
 
 function renderBudgetSettings(){
@@ -686,7 +871,13 @@ function getFilteredExpenses(){
   var to = filters.to || b.to;
   var q = filters.search.trim().toLowerCase();
   var list = state.expenses.filter(function(e){
-    if (e.date < from || e.date > to) return false;
+    if (filters.kind && kindOf(e) !== filters.kind) return false;
+    // A due belongs to no month — it is outstanding until it arrives — so the
+    // month range doesn't apply to it. An explicit from/to still does.
+    if (kindOf(e) === "due"){
+      if (filters.from && e.date < filters.from) return false;
+      if (filters.to && e.date > filters.to) return false;
+    } else if (e.date < from || e.date > to) return false;
     if (filters.category && e.category !== filters.category) return false;
     if (q && (e.note||"").toLowerCase().indexOf(q) === -1) return false;
     return true;
@@ -714,7 +905,9 @@ function renderList(){
       '<td><span class="cat-pill"><span class="cat-dot" style="background:'+c.color+'"></span>'+c.name+'</span></td>'+
       '<td class="note-cell">'+(e.note ? escapeHtml(e.note) : '<span style="color:var(--t4)">—</span>')+(e.recurring?'<span class="recur-tag">monthly</span>':'')+'</td>'+
       '<td>'+(e.method||"—")+'</td>'+
-      '<td class="amt-cell">'+fmt(e.amount)+'</td>'+
+      '<td class="amt-cell '+(kindOf(e)==="income"?"pos":kindOf(e)==="due"?"owed":"")+'">'+
+        (kindOf(e)==="income"?"+":kindOf(e)==="due"?"":"−")+fmt(e.amount)+
+        (kindOf(e)==="due"?'<span class="owed-tag">owed</span>':'')+'</td>'+
       '<td><div class="row-actions"><button data-edit="'+e.id+'" title="Edit">✎</button><button data-del="'+e.id+'" title="Delete">✕</button></div></td>';
     elTbody.appendChild(tr);
   });
@@ -742,14 +935,17 @@ function escapeHtml(s){
    settled transaction, so there's no bill to hold them on. */
 
 var counterCat = "";          // chip filter
+var counterKind = "expense";  // which of Spent / Received / Yet to receive
 var lastQuickId = null;       // for Undo
 
 // Exact (category, amount) pairs used more than once in the last 90 days,
 // commonest first — the counter builds its own menu out of your habits.
+// Counted per kind, so a salary never shows up among the spending tiles.
 function frequents(){
   var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 90);
   var cut = ymd(cutoff), tally = {};
   state.expenses.forEach(function(e){
+    if (kindOf(e) !== counterKind) return;
     if (e.date < cut) return;
     var amt = Math.round(Number(e.amount) * 100) / 100;
     if (!(amt > 0)) return;
@@ -768,7 +964,7 @@ function counterTiles(){
   var q = ($("qSearch").value || "").toLowerCase().trim();
   var out = frequents().map(function(f){
     return { kind:"freq", category:f.category, amount:f.amount, n:f.n, name:catById(f.category).name };
-  }).concat(CATS.map(function(c){
+  }).concat(catsFor(counterKind === "expense" ? "expense" : "income").map(function(c){
     return { kind:"cat", category:c.id, amount:null, name:c.name };
   }));
   return out.filter(function(t){
@@ -781,9 +977,23 @@ function counterTiles(){
 function renderCounter(){
   $("amtCur").textContent = state.settings.currency;
 
+  // what kind of entry this is — the one choice that changes everything below
+  $("qKinds").innerHTML = KINDS.map(function(k){
+    return '<button class="k-' + k[0] + '" data-qkind="' + k[0] + '" aria-pressed="' +
+      (counterKind === k[0]) + '">' + k[1] + '</button>';
+  }).join("");
+  $("qTitle").textContent = counterKind === "expense" ? "Add an expense"
+    : counterKind === "income" ? "Record money received" : "Record money owed to you";
+  $("qHint").textContent = counterKind === "expense"
+    ? "Type the amount, tap a category. Enter adds the first match."
+    : counterKind === "income"
+      ? "Money received. Type the amount, tap where it came from."
+      : "Money owed to you. Record it now, mark it received when it arrives.";
+  $("amtBox").className = "amtbox" + (counterKind === "expense" ? "" : " in-" + counterKind);
+
   var used = {};
-  state.expenses.forEach(function(e){ used[e.category] = true; });
-  var chipCats = CATS.filter(function(c){ return used[c.id]; });
+  state.expenses.forEach(function(e){ if (kindOf(e) === counterKind) used[e.category] = true; });
+  var chipCats = catsFor(counterKind === "expense" ? "expense" : "income").filter(function(c){ return used[c.id]; });
   if (chipCats.length < 2) chipCats = [];
   $("qChips").innerHTML = chipCats.length
     ? '<button class="chip" data-qcat="" aria-pressed="' + (!counterCat) + '">All</button>' +
@@ -796,7 +1006,7 @@ function renderCounter(){
   $("qTiles").innerHTML = tiles.map(function(t, i){
     var c = catById(t.category);
     if (t.kind === "freq"){
-      return '<button class="tile freq" data-qadd="' + i + '">' +
+      return '<button class="tile freq t-' + counterKind + '" data-qadd="' + i + '">' +
         '<span class="tdot" style="background:' + c.color + '"></span>' +
         '<span class="tn">' + escapeHtml(t.name) + '</span>' +
         '<span class="tp">' + fmt(t.amount) + '</span>' +
@@ -815,27 +1025,31 @@ function renderCounter(){
 // Today's entries, as a running ticket under the grid.
 function renderTicket(){
   var t = todayStr();
-  var rows = state.expenses.filter(function(e){ return e.date === t; });
+  var rows = state.expenses.filter(function(e){ return e.date === t && kindOf(e) !== "due"; });
   var el = $("qTicket");
   if (!rows.length){ el.innerHTML = ""; return; }
-  var sum = rows.reduce(function(s,e){ return s + Number(e.amount); }, 0);
+  // a day's figure is what actually moved: received minus spent
+  var net = rows.reduce(function(s,e){
+    return s + (kindOf(e) === "income" ? Number(e.amount) : -Number(e.amount));
+  }, 0);
 
-  // identical (category, amount) entries collapse into one line with a count
+  // identical (kind, category, amount) entries collapse into one line with a count
   var groups = [];
   rows.forEach(function(e){
-    var amt = Math.round(Number(e.amount)*100)/100;
-    var g = groups.find(function(x){ return x.category === e.category && x.amount === amt && !e.note; });
+    var amt = Math.round(Number(e.amount)*100)/100, k = kindOf(e);
+    var g = groups.find(function(x){ return x.kind === k && x.category === e.category && x.amount === amt && !x.note; });
     if (g && !e.note) { g.ids.push(e.id); }
-    else groups.push({ category:e.category, amount:amt, note:e.note||"", ids:[e.id] });
+    else groups.push({ kind:k, category:e.category, amount:amt, note:e.note||"", ids:[e.id] });
   });
 
-  el.innerHTML = '<div class="ticket-head"><span>Today · ' + rows.length + ' entr' + (rows.length===1?"y":"ies") + '</span><b>' + fmt(sum) + '</b></div>' +
+  el.innerHTML = '<div class="ticket-head"><span>Today · ' + rows.length + ' entr' + (rows.length===1?"y":"ies") +
+      '</span><b class="' + (net < 0 ? "" : "pos") + '">' + (net < 0 ? "−" : "+") + fmt(Math.abs(net)) + '</b></div>' +
     groups.map(function(g, i){
-      var c = catById(g.category);
+      var c = catById(g.category), inc = g.kind === "income";
       return '<div class="tline">' +
         '<div class="tcat"><span class="legend-dot" style="background:' + c.color + '"></span>' +
         '<span class="tname">' + escapeHtml(c.name) + (g.note ? ' · <span style="color:var(--t4)">' + escapeHtml(g.note) + '</span>' : '') + '</span></div>' +
-        '<span class="tamt">' + fmt(g.amount * g.ids.length) + '</span>' +
+        '<span class="tamt' + (inc ? " pos" : "") + '">' + (inc ? "+" : "−") + fmt(g.amount * g.ids.length) + '</span>' +
         '<div class="stepper"><button data-qstep="' + i + ':-1" aria-label="One less">−</button>' +
         '<span>' + g.ids.length + '</span>' +
         '<button data-qstep="' + i + ':1" aria-label="One more">+</button></div></div>';
@@ -843,8 +1057,9 @@ function renderTicket(){
   el._groups = groups;
 }
 
-// Record one expense immediately. No modal, no confirm — Undo is the safety net.
-function quickAdd(category, amount, note){
+// Record one entry immediately. No modal, no confirm — Undo is the safety net.
+function quickAdd(category, amount, note, kind){
+  kind = kind || counterKind;
   amount = Math.round(Number(amount) * 100) / 100;
   if (!(amount > 0)){
     var box = $("amtBox");
@@ -853,7 +1068,7 @@ function quickAdd(category, amount, note){
     toast("Enter an amount first.");
     return false;
   }
-  var rec = { id: uid(), amount: amount, date: todayStr(), category: category,
+  var rec = { id: uid(), kind: kind, amount: amount, date: todayStr(), category: category,
               method: state.settings.lastMethod || "Card", note: note || "", recurring: false };
   state.expenses.push(rec);
   lastQuickId = rec.id;
@@ -864,7 +1079,9 @@ function quickAdd(category, amount, note){
   var now = new Date();
   view.year = now.getFullYear(); view.month = now.getMonth();
   renderAll();
-  toast(fmt(amount) + " · " + catById(category).name, "Undo", function(){
+  var sign = kind === "expense" ? "−" : kind === "income" ? "+" : "";
+  var tail = kind === "due" ? " owed to you" : "";
+  toast(sign + fmt(amount) + " · " + catById(category).name + tail, "Undo", function(){
     state.expenses = state.expenses.filter(function(x){ return x.id !== rec.id; });
     save(); renderAll(); toast("Removed.");
   });
@@ -880,6 +1097,16 @@ $("qTiles").addEventListener("click", function(ev){
   // a typed amount still wins, so you can reuse the category at a new price
   var typed = parseFloat($("qAmount").value);
   quickAdd(t.category, (typed > 0 ? typed : t.amount));
+});
+
+$("qKinds").addEventListener("click", function(ev){
+  var b = ev.target.closest("[data-qkind]");
+  if (!b) return;
+  counterKind = b.dataset.qkind;
+  counterCat = "";                     // the old chip belongs to the other category set
+  $("qSearch").value = "";
+  renderCounter();
+  $("qAmount").focus();
 });
 
 $("qChips").addEventListener("click", function(ev){
@@ -910,7 +1137,7 @@ $("qTicket").addEventListener("click", function(ev){
   var g = ($("qTicket")._groups || [])[Number(parts[0])];
   if (!g) return;
   if (Number(parts[1]) > 0){
-    quickAdd(g.category, g.amount, g.note);
+    quickAdd(g.category, g.amount, g.note, g.kind);   // repeat the line's own kind
   } else {
     var id = g.ids[g.ids.length - 1];
     state.expenses = state.expenses.filter(function(x){ return x.id !== id; });
@@ -925,6 +1152,7 @@ function renderAll(){
   renderSummary();
   renderDonut();
   renderTrend();
+  renderDues();
   renderBudgets();
   renderList();
 }
@@ -945,6 +1173,7 @@ $("mToday").addEventListener("click", function(){
 
 /* ---------- filters ---------- */
 $("fSearch").addEventListener("input", function(){ filters.search = this.value; renderList(); });
+$("fKind").addEventListener("change", function(){ filters.kind = this.value; populateCategorySelects(); renderList(); });
 $("fCategory").addEventListener("change", function(){ filters.category = this.value; renderList(); });
 $("fFrom").addEventListener("change", function(){ filters.from = this.value; renderList(); });
 $("fTo").addEventListener("change", function(){ filters.to = this.value; renderList(); });
@@ -962,16 +1191,35 @@ var editingId = null;
 function openExpenseModal(id){
   editingId = id || null;
   var e = id ? state.expenses.find(function(x){ return x.id===id; }) : null;
-  $("expModalTitle").textContent = e ? "Edit expense" : "Add expense";
+  var k = e ? kindOf(e) : counterKind;
+  $("exKind").value = k;
+  applyModalKind();
+  $("expModalTitle").textContent = e
+    ? (k === "expense" ? "Edit expense" : k === "income" ? "Edit receipt" : "Edit what you are owed")
+    : (k === "expense" ? "Add expense" : k === "income" ? "Record money received" : "Record money owed to you");
   $("exAmount").value = e ? e.amount : "";
   $("exDate").value = e ? e.date : (view.year===new Date().getFullYear() && view.month===new Date().getMonth() ? todayStr() : monthBounds(view.year,view.month).from);
-  $("exCategory").value = e ? e.category : CATS[0].id;
+  $("exCategory").value = e ? e.category : catsFor(k === "expense" ? "expense" : "income")[0].id;
   $("exMethod").value = e ? (e.method||"Card") : "Card";
   $("exNote").value = e ? (e.note||"") : "";
   $("exRecurring").checked = e ? !!e.recurring : false;
   $("ovExpense").hidden = false;
   $("exAmount").focus();
 }
+// Field labels and the category list follow the chosen kind.
+function applyModalKind(){
+  var k = $("exKind").value;
+  populateModalCategories();
+  $("exCatLabel").textContent = k === "expense" ? "Category" : k === "income" ? "Where it came from" : "Who owes you / what for";
+  $("exDateLabel").textContent = k === "due" ? "Expected on" : "Date";
+  $("exNote").placeholder = k === "expense" ? "e.g. Groceries at the market"
+    : k === "income" ? "e.g. October salary" : "e.g. Raj, split dinner";
+  // a due has not been paid by any method yet, and cannot repeat monthly
+  $("exMethodWrap").style.display = k === "due" ? "none" : "";
+  $("exRecurWrap").style.display = k === "due" ? "none" : "";
+}
+$("exKind").addEventListener("change", applyModalKind);
+
 function closeExpenseModal(){ $("ovExpense").hidden = true; editingId = null; }
 $("btnAdd").addEventListener("click", function(){ openExpenseModal(null); });
 $("exCancel").addEventListener("click", closeExpenseModal);
@@ -982,28 +1230,29 @@ $("exSave").addEventListener("click", function(){
   var date = $("exDate").value;
   if (!(amount > 0) || !date){ toast("Enter a valid amount and date."); return; }
   var category = $("exCategory").value;
-  var method = $("exMethod").value;
+  var kind = $("exKind").value;
+  var method = kind === "due" ? "" : $("exMethod").value;
   var note = $("exNote").value.trim();
-  var recurring = $("exRecurring").checked;
-  state.settings.lastMethod = method;   // the counter reuses this instead of asking
+  var recurring = kind === "due" ? false : $("exRecurring").checked;
+  if (method) state.settings.lastMethod = method;   // the counter reuses this instead of asking
 
   if (editingId){
     var e = state.expenses.find(function(x){ return x.id===editingId; });
-    e.amount=amount; e.date=date; e.category=category; e.method=method; e.note=note;
+    e.amount=amount; e.date=date; e.category=category; e.method=method; e.note=note; e.kind=kind;
     if (recurring && !e.recurring){
-      var tpl = {id:uid(), amount:amount, category:category, note:note, method:method, day:new Date(date).getDate()};
+      var tpl = {id:uid(), kind:kind, amount:amount, category:category, note:note, method:method, day:new Date(date).getDate()};
       state.recurring.push(tpl); e.recurring = true; e.sourceId = tpl.id;
     } else if (!recurring && e.recurring){
       state.recurring = state.recurring.filter(function(t){ return t.id !== e.sourceId; });
       e.recurring = false; delete e.sourceId;
     } else if (recurring && e.sourceId){
       var t2 = state.recurring.find(function(t){ return t.id===e.sourceId; });
-      if (t2){ t2.amount=amount; t2.category=category; t2.note=note; t2.method=method; }
+      if (t2){ t2.amount=amount; t2.category=category; t2.note=note; t2.method=method; t2.kind=kind; }
     }
   } else {
-    var rec = {id: uid(), amount:amount, date:date, category:category, method:method, note:note, recurring:false};
+    var rec = {id: uid(), kind:kind, amount:amount, date:date, category:category, method:method, note:note, recurring:false};
     if (recurring){
-      var tpl2 = {id:uid(), amount:amount, category:category, note:note, method:method, day:new Date(date).getDate()};
+      var tpl2 = {id:uid(), kind:kind, amount:amount, category:category, note:note, method:method, day:new Date(date).getDate()};
       state.recurring.push(tpl2);
       rec.recurring = true; rec.sourceId = tpl2.id;
     }
@@ -1029,9 +1278,10 @@ function deleteExpense(id){
 
 /* ---------- CSV export/import ---------- */
 $("btnExport").addEventListener("click", function(){
-  var rows = [["date","category","amount","method","note","recurring"]];
+  // kind leads, so a round trip never turns a receipt back into an expense
+  var rows = [["kind","date","category","amount","method","note","recurring"]];
   getFilteredExpenses().forEach(function(e){
-    rows.push([e.date, catById(e.category).name, e.amount, e.method||"", (e.note||"").replace(/"/g,'""'), e.recurring?"yes":"no"]);
+    rows.push([kindOf(e), e.date, catById(e.category).name, e.amount, e.method||"", (e.note||"").replace(/"/g,'""'), e.recurring?"yes":"no"]);
   });
   var csv = rows.map(function(r){
     return r.map(function(v){ v=String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(",");
@@ -1051,18 +1301,26 @@ $("fileImport").addEventListener("change", function(){
   reader.onload = function(){
     var lines = String(reader.result).split(/\r?\n/).filter(Boolean);
     var added = 0;
+    // Files written before kind existed start with the date, so detect which
+    // layout this is from the header rather than assuming.
+    var head = parseCsvLine(lines[0]).map(function(h){ return h.toLowerCase().trim(); });
+    var hasKind = head[0] === "kind";
     lines.slice(1).forEach(function(line){
       var cols = parseCsvLine(line);
+      var kind = hasKind ? String(cols[0]||"").toLowerCase().trim() : "expense";
+      if (hasKind) cols = cols.slice(1);
       if (cols.length < 3) return;
+      if (["expense","income","due"].indexOf(kind) === -1) kind = "expense";
       var date = cols[0], catName = cols[1], amount = parseFloat(cols[2]);
       var method = cols[3]||"Other", note = cols[4]||"";
       if (!date || !(amount>0)) return;
-      var cat = CATS.find(function(c){ return c.name.toLowerCase()===String(catName).toLowerCase(); }) || CATS[CATS.length-1];
-      state.expenses.push({id:uid(), date:date, category:cat.id, amount:amount, method:method, note:note, recurring:false});
+      var pool = catsFor(kind === "expense" ? "expense" : "income");
+      var cat = pool.find(function(c){ return c.name.toLowerCase()===String(catName).toLowerCase(); }) || pool[pool.length-1];
+      state.expenses.push({id:uid(), kind:kind, date:date, category:cat.id, amount:amount, method:method, note:note, recurring:false});
       added++;
     });
     save(); renderAll();
-    toast(added + " expense" + (added===1?"":"s") + " imported.");
+    toast(added + " entr" + (added===1?"y":"ies") + " imported.");
     this.value = "";
   }.bind(this);
   reader.readAsText(file);
