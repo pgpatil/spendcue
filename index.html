@@ -58,6 +58,15 @@ input,select{font:inherit}
 .top-actions{display:flex;gap:8px;align-items:center}
 .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--bdr);background:var(--card);color:var(--t2);display:flex;align-items:center;justify-content:center}
 .icon-btn:hover{background:var(--sub)}
+.installpill{height:34px;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;padding:0 12px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.installpill:hover{background:var(--accent-d);border-color:var(--accent-d)}
+/* install steps */
+.steps{counter-reset:s;margin:0;padding:0;list-style:none}
+.steps li{counter-increment:s;position:relative;padding:0 0 12px 32px;font-size:13.5px;color:var(--t2);line-height:1.5}
+.steps li:last-child{padding-bottom:2px}
+.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;background:var(--accent-l);color:var(--accent);font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.steps b{color:var(--t1)}
+.sharemark{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border:1px solid var(--bdr2);border-radius:5px;padding:0 4px;font-size:12px;vertical-align:-4px;background:var(--sub)}
 
 /* month nav */
 .monthnav{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:8px 10px;margin-bottom:16px;box-shadow:var(--shadow)}
@@ -228,6 +237,7 @@ tbody tr:hover{background:var(--sub)}
       <div class="brand-name">Spendcue</div>
     </div>
     <div class="top-actions">
+      <button class="installpill hidden" id="btnInstall" title="Add Spendcue to your home screen">Install app</button>
       <button class="icon-btn" id="btnSettings" title="Settings">⚙</button>
       <button class="icon-btn" id="btnTheme" title="Toggle theme">◐</button>
     </div>
@@ -360,6 +370,9 @@ tbody tr:hover{background:var(--sub)}
       <div class="settings-row"><span class="name">Theme</span>
         <select id="setTheme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
       </div>
+      <div class="settings-row"><span class="name" id="setInstallName">Install as an app</span>
+        <button class="btn" id="setInstall">Install</button>
+      </div>
     </div>
 
     <div id="tabBudgets" class="settings-list hidden"></div>
@@ -386,6 +399,18 @@ tbody tr:hover{background:var(--sub)}
 
     <div class="modal-actions">
       <button class="btn primary" id="setClose">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Install instructions, for browsers that have no install prompt of their own -->
+<div class="overlay" id="ovInstall" hidden>
+  <div class="modal">
+    <h3 id="instTitle">Add Spendcue to your home screen</h3>
+    <p style="font-size:12.5px;color:var(--t4);margin:0 0 14px">It opens full screen, works offline, and keeps your data on this device.</p>
+    <ol class="steps" id="instSteps"></ol>
+    <div class="modal-actions">
+      <button class="btn primary" id="instClose">Got it</button>
     </div>
   </div>
 </div>
@@ -1065,6 +1090,7 @@ function openSettings(){
   $("setTheme").value = state.settings.theme;
   renderBudgetSettings();
   gRenderStatus();
+  renderInstallUi();
   $("ovSettings").hidden = false;
 }
 $("btnSettings").addEventListener("click", openSettings);
@@ -1421,10 +1447,97 @@ function toast(msg, actionLabel, onAction){
   toastTimer = setTimeout(function(){ el.classList.remove("show"); }, actionLabel ? 4500 : 2200);
 }
 
+/* ---------- install as an app ----------
+   Chrome and Edge hand us a beforeinstallprompt event we can fire on a
+   real tap. Safari (and iOS in general, whatever the browser's badge says,
+   since they all run WebKit) never does — there the only route is the
+   Share menu, so the button explains it instead of pretending to install. */
+
+var deferredInstall = null;
+
+function isStandalone(){
+  return window.matchMedia("(display-mode: standalone)").matches ||
+         window.navigator.standalone === true;
+}
+function isIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);  // iPadOS reports as Mac
+}
+// Can we offer anything at all? Either a real prompt, or instructions worth showing.
+function installOffer(){
+  if (isStandalone()) return "installed";
+  if (deferredInstall) return "prompt";
+  if (isIOS()) return "ios";
+  return "manual";
+}
+
+function renderInstallUi(){
+  var offer = installOffer();
+  // the header pill is for the two cases where install is a real next step
+  $("btnInstall").classList.toggle("hidden", offer !== "prompt" && offer !== "ios");
+  var row = $("setInstall"), name = $("setInstallName");
+  if (offer === "installed"){
+    name.textContent = "Installed as an app";
+    row.textContent = "Installed";
+    row.disabled = true;
+  } else {
+    name.textContent = "Install as an app";
+    row.textContent = offer === "prompt" ? "Install" : "How to";
+    row.disabled = false;
+  }
+}
+
+var IOS_STEPS = [
+  'Tap the Share button <span class="sharemark">&#8679;</span> in Safari’s toolbar.',
+  'Scroll down and tap <b>Add to Home Screen</b>.',
+  'Tap <b>Add</b>. Spendcue appears with your other apps.'
+];
+var DESKTOP_STEPS = [
+  'Open your browser’s menu (<b>⋮</b> or <b>…</b> in the toolbar).',
+  'Choose <b>Install Spendcue</b>, <b>Install app</b>, or <b>Add to Home screen</b> — the wording varies by browser.',
+  'Confirm. It then opens in its own window, without browser tabs.'
+];
+
+function showInstallSteps(){
+  var ios = isIOS();
+  $("instTitle").textContent = ios ? "Add Spendcue to your home screen" : "Install Spendcue";
+  $("instSteps").innerHTML = (ios ? IOS_STEPS : DESKTOP_STEPS)
+    .map(function(s){ return "<li>" + s + "</li>"; }).join("");
+  $("ovInstall").hidden = false;
+}
+
+async function doInstall(){
+  if (isStandalone()){ toast("Spendcue is already installed."); return; }
+  if (!deferredInstall){ showInstallSteps(); return; }
+  deferredInstall.prompt();
+  var choice = null;
+  try { choice = await deferredInstall.userChoice; } catch(e){}
+  deferredInstall = null;            // the event is single-use
+  renderInstallUi();
+  if (choice && choice.outcome === "accepted") toast("Installing Spendcue…");
+}
+
+window.addEventListener("beforeinstallprompt", function(ev){
+  ev.preventDefault();               // keep the mini-infobar, use our own button
+  deferredInstall = ev;
+  renderInstallUi();
+});
+window.addEventListener("appinstalled", function(){
+  deferredInstall = null;
+  renderInstallUi();
+  toast("Spendcue is on your home screen.");
+});
+
+$("btnInstall").addEventListener("click", doInstall);
+$("setInstall").addEventListener("click", doInstall);
+$("instClose").addEventListener("click", function(){ $("ovInstall").hidden = true; });
+$("ovInstall").addEventListener("click", function(ev){ if (ev.target === this) this.hidden = true; });
+
 /* ---------- init ---------- */
 populateCategorySelects();
 applyTheme();
 renderAll();
+renderInstallUi();
 
 if ("serviceWorker" in navigator){
   window.addEventListener("load", function(){
