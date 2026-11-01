@@ -214,6 +214,8 @@ tbody tr:hover{background:var(--sub)}
 .pot-left small{display:block;font-size:10.5px;font-weight:600;color:var(--t4);text-transform:uppercase;letter-spacing:.04em}
 .pot-bar{height:8px;border-radius:5px;background:var(--sub);border:1px solid var(--bdr);overflow:hidden;margin-top:8px}
 .pot-fill{height:100%;border-radius:4px}
+.pot-now{display:inline-block;margin-left:6px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:1px 5px;vertical-align:1px}
+.pot.active .pot-bar{border-color:var(--accent)}
 .pot-toggle{display:block;width:100%;text-align:left;background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;padding:7px 0 0}
 .pot-toggle:hover{color:var(--accent-d)}
 .pot-items{margin-top:4px;padding-left:4px;border-left:2px solid var(--bdr)}
@@ -695,7 +697,7 @@ function overdueCount(dues){
 /* ---------- pocket money ----------
    Every receipt is a pot. Spending draws down the pot it came from, so a
    child can point at a row and say where their pocket money went and how
-   much is left. A spend attaches to the most recent receipt that still has
+   much is left. A spend attaches to the oldest receipt that still has
    something in it; if it overshoots, the pot goes negative on purpose —
    "you spent more than you were given" is the lesson, not an error to hide. */
 
@@ -718,13 +720,15 @@ function remainingOf(rec){ return Number(rec.amount) - spentFromPot(rec.id); }
 function potById(id){
   return state.expenses.find(function(x){ return x.id === id && kindOf(x) === "income"; });
 }
-// Which pot a new spend comes out of: the newest one with money left,
-// else the newest one at all, so an overspend still shows up somewhere.
+// Which pot a new spend comes out of: the OLDEST one with money left, so
+// last week's money is finished before this week's is touched. If every pot
+// is spent out, the overspend lands on the newest — the money you are on now.
 function pickPot(){
   if (state.settings.linkSpending === false) return null;
-  var inc = incomeRecords();
+  var inc = incomeRecords();                 // newest first
   if (!inc.length) return null;
-  var withLeft = inc.find(function(r){ return remainingOf(r) > 0; });
+  var oldestFirst = inc.slice().reverse();
+  var withLeft = oldestFirst.find(function(r){ return remainingOf(r) > 0; });
   return (withLeft || inc[0]).id;
 }
 function potLabel(rec){ return catById(rec.category).name + " · " + friendlyDate(rec.date); }
@@ -750,6 +754,7 @@ function renderPots(){
   var left = inc.reduce(function(s,r){ return s + Math.max(0, remainingOf(r)); }, 0);
   $("potHint").textContent = fmt(left) + " left to spend";
 
+  var activePot = pickPot();
   out.innerHTML = inc.slice(0, 6).map(function(r){
     var spent = spentFromPot(r.id), rem = remainingOf(r), amt = Number(r.amount);
     var pct = amt > 0 ? Math.min(100, Math.round(spent / amt * 100)) : 0;
@@ -758,10 +763,12 @@ function renderPots(){
     var items = state.expenses.filter(function(e){ return kindOf(e) === "expense" && e.fromId === r.id; })
       .sort(function(a,b){ return a.date < b.date ? 1 : -1; });
     var open = openPots[r.id];
-    return '<div class="pot">' +
+    var active = r.id === activePot;
+    return '<div class="pot' + (active ? ' active' : '') + '">' +
       '<div class="pot-top"><span class="legend-dot" style="background:' + c.color + '"></span>' +
         '<div class="pot-name">' + escapeHtml(catById(r.category).name) +
           (r.note ? ' · <span style="color:var(--t4)">' + escapeHtml(r.note) + '</span>' : '') +
+          (active ? '<span class="pot-now">spending from this</span>' : '') +
           '<div class="pot-when">' + friendlyDate(r.date) + ' · got ' + fmt(amt) + '</div></div>' +
         '<div class="pot-left' + (over ? ' over' : '') + '">' + (over ? "−" : "") + fmt(Math.abs(rem)) +
           '<small>' + (over ? "over" : "left") + '</small></div></div>' +
