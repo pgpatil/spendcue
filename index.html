@@ -326,9 +326,9 @@ tbody tr:hover{background:var(--sub)}
 
   <div class="cards">
     <div class="card"><div class="k">Spent this month</div><div class="v" id="cSpent">$0.00</div><div class="sub" id="cSpentSub">0 expenses</div></div>
-    <div class="card"><div class="k">Received this month</div><div class="v grn" id="cIn">$0.00</div><div class="sub" id="cInSub">0 receipts</div></div>
-    <div class="card"><div class="k">Net this month</div><div class="v" id="cNet">$0.00</div><div class="sub" id="cNetSub">received less spent</div></div>
-    <div class="card"><div class="k">Yet to receive</div><div class="v" id="cDue">$0.00</div><div class="sub" id="cDueSub">nothing outstanding</div></div>
+    <div class="card"><div class="k" id="lblIn">Received this month</div><div class="v grn" id="cIn">$0.00</div><div class="sub" id="cInSub">0 receipts</div></div>
+    <div class="card"><div class="k" id="lblNet">Net this month</div><div class="v" id="cNet">$0.00</div><div class="sub" id="cNetSub">received less spent</div></div>
+    <div class="card"><div class="k" id="lblDue">Yet to receive</div><div class="v" id="cDue">$0.00</div><div class="sub" id="cDueSub">nothing outstanding</div></div>
     <div class="card"><div class="k">Budget remaining</div><div class="v" id="cRemain">$0.00</div><div class="sub" id="cRemainSub">of $0.00 budgeted</div></div>
     <div class="card"><div class="k">Top category</div><div class="v" id="cTop">—</div><div class="sub" id="cTopSub">—</div></div>
   </div>
@@ -348,12 +348,12 @@ tbody tr:hover{background:var(--sub)}
   </div>
 
   <div class="panel" id="potPanel" style="margin-bottom:16px">
-    <h2>Money you were given <small id="potHint"></small></h2>
+    <h2><span id="potTitle">Money you were given</span> <small id="potHint"></small></h2>
     <div id="potList"></div>
   </div>
 
   <div class="panel" id="duePanel" style="margin-bottom:16px">
-    <h2>Yet to receive <small id="dueTotalLbl"></small></h2>
+    <h2><span id="dueTitle">Yet to receive</span> <small id="dueTotalLbl"></small></h2>
     <div id="dueList"></div>
   </div>
 
@@ -446,6 +446,12 @@ tbody tr:hover{background:var(--sub)}
     </div>
 
     <div id="tabGeneral" class="settings-list">
+      <div class="settings-row"><span class="name">Who is using this<br><small style="color:var(--t4);font-weight:400">Changes the categories and the wording</small></span>
+        <select id="setProfile">
+          <option value="grown">A grown-up</option>
+          <option value="kid">A child</option>
+        </select>
+      </div>
       <div class="settings-row"><span class="name">Currency</span>
         <select id="setCurrency"></select>
       </div>
@@ -537,15 +543,57 @@ var IN_CATS = [
   {id:"in_sale", name:"Sale", color:"#9a6bd7"},
   {id:"in_other", name:"Other income", color:"#8a8f99"}
 ];
-var ALL_CATS = CATS.concat(IN_CATS);
+// A child spends on different things and is given money in different ways —
+// nobody's ten-year-old is paying the electricity bill. These are swapped in
+// by the "Who is using this" setting; the grown-up sets stay for everyone else.
+var KID_CATS = [
+  {id:"k_snacks",  name:"Snacks & treats",  color:"#e0663f"},
+  {id:"k_canteen", name:"Canteen & tiffin", color:"#2f9e6b"},
+  {id:"k_toys",    name:"Toys & games",     color:"#d1518b"},
+  {id:"k_books",   name:"Books & comics",   color:"#6b7fd7"},
+  {id:"k_supplies",name:"Stationery",       color:"#2aa6a0"},
+  {id:"k_outings", name:"Outings & movies", color:"#c9932f"},
+  {id:"k_sports",  name:"Sports & hobbies", color:"#3d7fd1"},
+  {id:"k_fare",    name:"Bus & auto fare",  color:"#4aa8d8"},
+  {id:"k_recharge",name:"Phone recharge",   color:"#9a6bd7"},
+  {id:"k_gifts",   name:"Gifts for others", color:"#7a5cc4"},
+  {id:"k_giving",  name:"Giving & charity", color:"#1c8a5a"},
+  {id:"k_other",   name:"Something else",   color:"#8a8f99"}
+];
+var KID_IN_CATS = [
+  {id:"in_pocket",  name:"Pocket money",     color:"#1c8a5a"},
+  {id:"in_gift",    name:"Gift",             color:"#d1518b"},
+  {id:"in_prize",   name:"Prize or reward",  color:"#c9932f"},
+  {id:"in_chores",  name:"Jobs & chores",    color:"#3d7fd1"},
+  {id:"in_sale",    name:"Sold something",   color:"#9a6bd7"},
+  {id:"in_lent",    name:"Money lent back",  color:"#7a5cc4"},
+  {id:"in_other",   name:"Something else",   color:"#8a8f99"}
+];
+// Every category ever used must stay resolvable, whichever profile is on,
+// or switching would turn a child's old rows into "Other".
+var ALL_CATS = CATS.concat(IN_CATS).concat(KID_CATS).concat(KID_IN_CATS);
+function isKid(){ return state.settings.profile === "kid"; }
+// Some ids are shared between profiles on purpose (a gift is a gift), with
+// wording to suit the reader — "Sold something" for a child, "Sale" for a
+// grown-up — so the active profile's sets are searched first.
 function catById(id){
-  for (var i=0;i<ALL_CATS.length;i++) if (ALL_CATS[i].id===id) return ALL_CATS[i];
-  return (String(id||"").indexOf("in_") === 0) ? IN_CATS[IN_CATS.length-1] : CATS[CATS.length-1];
+  var mine = catsFor("expense").concat(catsFor("income")), i;
+  for (i=0;i<mine.length;i++) if (mine[i].id===id) return mine[i];
+  for (i=0;i<ALL_CATS.length;i++) if (ALL_CATS[i].id===id) return ALL_CATS[i];
+  var income = String(id||"").indexOf("in_") === 0;
+  var pool = catsFor(income ? "income" : "expense");
+  return pool[pool.length-1];
 }
 // Records written before income existed have no kind; they are all expenses.
 function kindOf(r){ return r.kind || "expense"; }
-function catsFor(kind){ return kind === "expense" ? CATS : IN_CATS; }
-var KINDS = [["expense","Spent"],["income","Received"],["due","Yet to receive"]];
+function catsFor(kind){
+  if (kind === "expense") return isKid() ? KID_CATS : CATS;
+  return isKid() ? KID_IN_CATS : IN_CATS;
+}
+function kindLabels(){
+  return isKid() ? [["expense","Spent"],["income","Got"],["due","Promised"]]
+                 : [["expense","Spent"],["income","Received"],["due","Yet to receive"]];
+}
 
 // Symbol is what gets stored (older saves hold a bare symbol, and so do
 // synced Drive files), so the list is keyed by symbol and carries the locale
@@ -670,6 +718,21 @@ function sumOf(list){ return list.reduce(function(s,e){ return s + Number(e.amou
 
 function renderMonthNav(){
   elMLabel.textContent = MONTH_NAMES[view.month] + " " + view.year;
+}
+
+// A few headings read differently to a child than to a grown-up.
+function applyWording(){
+  var kid = isKid();
+  var set = function(id, txt){ var el = $(id); if (el) el.textContent = txt; };
+  set("lblIn",  kid ? "Got this month"   : "Received this month");
+  set("lblDue", kid ? "Promised to you"  : "Yet to receive");
+  set("lblNet", kid ? "Left over"        : "Net this month");
+  set("potTitle", kid ? "Money you were given" : "Money you were given");
+  set("dueTitle", kid ? "Promised to you" : "Yet to receive");
+  var modal = $("exKind");
+  if (modal) modal.options[1].text = kid ? "Money I got" : "Money received";
+  if (modal) modal.options[2].text = kid ? "Money promised to me" : "Money yet to receive";
+  if (modal) modal.options[0].text = kid ? "Money I spent" : "Money spent";
 }
 
 function renderSummary(){
@@ -1020,7 +1083,7 @@ function optionsFor(list, sel){
 // with no kind chosen it offers both, so nothing becomes unreachable.
 function populateCategorySelects(){
   var keep = $("fCategory").value;
-  var forFilter = !filters.kind ? ALL_CATS : catsFor(filters.kind === "expense" ? "expense" : "income");
+  var forFilter = !filters.kind ? catsFor("expense").concat(catsFor("income")) : catsFor(filters.kind === "expense" ? "expense" : "income");
   $("fCategory").innerHTML = '<option value="">All categories</option>' + optionsFor(forFilter, keep);
   if ($("fCategory").value !== keep) { $("fCategory").value = ""; filters.category = ""; }
   populateModalCategories();
@@ -1033,7 +1096,7 @@ function populateModalCategories(){
 
 function renderBudgetSettings(){
   var out = $("tabBudgets");
-  out.innerHTML = CATS.map(function(c){
+  out.innerHTML = catsFor("expense").map(function(c){
     var v = state.budgets[c.id] || "";
     return '<div class="settings-row"><span class="name"><span class="legend-dot" style="background:'+c.color+';display:inline-block;margin-right:6px"></span>'+c.name+'</span>'+
       '<input type="number" min="0" step="1" data-budget="'+c.id+'" value="'+v+'" placeholder="0" style="width:90px;text-align:right;border:1px solid var(--bdr2);background:var(--bg);color:var(--t1);border-radius:8px;padding:6px 8px"></div>';
@@ -1161,17 +1224,22 @@ function renderCounter(){
   $("amtCur").textContent = state.settings.currency;
 
   // what kind of entry this is — the one choice that changes everything below
-  $("qKinds").innerHTML = KINDS.map(function(k){
+  $("qKinds").innerHTML = kindLabels().map(function(k){
     return '<button class="k-' + k[0] + '" data-qkind="' + k[0] + '" aria-pressed="' +
       (counterKind === k[0]) + '">' + k[1] + '</button>';
   }).join("");
-  $("qTitle").textContent = counterKind === "expense" ? "Add an expense"
-    : counterKind === "income" ? "Record money received" : "Record money owed to you";
+  var kid = isKid();
+  $("qTitle").textContent = counterKind === "expense" ? (kid ? "What did you spend on?" : "Add an expense")
+    : counterKind === "income" ? (kid ? "Money you got" : "Record money received")
+    : (kid ? "Money promised to you" : "Record money owed to you");
   $("qHint").textContent = counterKind === "expense"
-    ? "Type the amount, tap a category. Enter adds the first match."
+    ? (kid ? "Type how much, then tap what you spent it on."
+           : "Type the amount, tap a category. Enter adds the first match.")
     : counterKind === "income"
-      ? "Money received. Type the amount, tap where it came from."
-      : "Money owed to you. Record it now, mark it received when it arrives.";
+      ? (kid ? "Type how much, then tap who gave it to you."
+             : "Money received. Type the amount, tap where it came from.")
+      : (kid ? "Someone owes you. Add it now, tick it off when you get it."
+             : "Money owed to you. Record it now, mark it received when it arrives.");
   $("amtBox").className = "amtbox" + (counterKind === "expense" ? "" : " in-" + counterKind);
 
   var used = {};
@@ -1342,6 +1410,7 @@ $("qTicket").addEventListener("click", function(ev){
 
 function renderAll(){
   ensureRecurringForMonth(view.year, view.month);
+  applyWording();
   renderMonthNav();
   renderCounter();
   renderSummary();
@@ -1565,6 +1634,7 @@ function parseCsvLine(line){
 /* ---------- settings modal ---------- */
 function openSettings(){
   renderCurrencyPicker();
+  $("setProfile").value = isKid() ? "kid" : "grown";
   $("setTheme").value = state.settings.theme;
   $("setLink").checked = state.settings.linkSpending !== false;
   renderBudgetSettings();
@@ -1586,6 +1656,13 @@ document.querySelectorAll(".tab").forEach(function(tab){
   });
 });
 
+$("setProfile").addEventListener("change", function(){
+  state.settings.profile = this.value;
+  counterCat = "";                       // the old chip belongs to the other category set
+  save();
+  populateCategorySelects();
+  renderAll();
+});
 function renderCurrencyPicker(){
   var cur = state.settings.currency;
   var known = currentCurrency();
