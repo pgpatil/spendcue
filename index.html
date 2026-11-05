@@ -61,6 +61,17 @@ input,select{font:inherit}
 .wa-btn{border-color:#25D366;color:#128C4A;background:#eafaf0;font-size:15px}
 .wa-btn:hover{background:#25D366;color:#fff}
 :root[data-theme="dark"] .wa-btn,:root:not([data-theme="light"]) .wa-btn{background:#15321f;color:#6ee7a0;border-color:#1f7a45}
+.helpmodal{max-width:560px}
+.helpq{border-bottom:1px solid var(--bdr)}
+.helpq:last-child{border-bottom:none}
+.helpq summary{cursor:pointer;list-style:none;padding:11px 0;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.helpq summary::-webkit-details-marker{display:none}
+.helpq summary::before{content:"+";color:var(--accent);font-weight:700;width:12px;flex:none}
+.helpq[open] summary::before{content:"\2212"}
+.helpq .ha{font-size:13px;color:var(--t2);line-height:1.55;padding:0 0 12px 20px}
+.helpq .ha b{color:var(--t1)}
+.helptag{display:inline-block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;border:1px solid var(--amb);color:var(--amb);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px}
+.helpnone{font-size:12.5px;color:var(--t4);padding:18px 0;text-align:center}
 .installpill{height:34px;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;padding:0 12px;font-size:12.5px;font-weight:600;white-space:nowrap}
 .installpill:hover{background:var(--accent-d);border-color:var(--accent-d)}
 /* install steps */
@@ -335,6 +346,7 @@ tbody tr:hover{background:var(--sub)}
       <button class="installpill hidden" id="btnInstall" title="Add Spendcue to your home screen">Install app</button>
       <button class="icon-btn wa-btn" id="btnWhatsTop" title="Send a summary on WhatsApp" aria-label="Send a summary on WhatsApp">&#10148;</button>
       <button class="icon-btn" id="btnSettings" title="Settings">⚙</button>
+      <button class="icon-btn" id="btnHelp" title="Help and common questions" aria-label="Help and common questions">?</button>
       <button class="icon-btn" id="btnTheme" title="Toggle theme">◐</button>
     </div>
   </div>
@@ -593,6 +605,19 @@ tbody tr:hover{background:var(--sub)}
   </div>
 </div>
 
+<!-- Help -->
+<div class="overlay" id="ovHelp" hidden>
+  <div class="modal helpmodal">
+    <h3>Questions</h3>
+    <input type="text" class="counter-search" id="helpSearch" placeholder="Search — pocket money, WhatsApp, Drive…" autocomplete="off" style="margin-top:0">
+    <div id="helpList"></div>
+    <div class="helpnone hidden" id="helpNone">Nothing matches that. Try a different word.</div>
+    <div class="modal-actions">
+      <button class="btn primary" id="helpClose">Done</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -708,7 +733,7 @@ function currentCurrency(){ return currencyInfo(state.settings.currency, state.s
 
 // Must match the number in sw.js's cache name, so Settings can show which
 // build is really running — a stale service worker used to hide that.
-var APP_BUILD = 17;
+var APP_BUILD = 18;
 
 var STORE_KEY = "spendcue_data_v1";
 var state = load();
@@ -2469,6 +2494,115 @@ function renderFamilyPanel(){
 
 $("btnWhats").addEventListener("click", function(){ sendOnWhatsApp(); });
 $("btnWhatsTop").addEventListener("click", function(){ sendOnWhatsApp(); });
+
+/* ---------- help ----------
+   Answers describe what the app actually does. A wrong answer is worse than
+   a missing one, so anything changed in the app gets changed here too. */
+var FAQ = [
+  { q: "How do I add something I spent?",
+    a: "Type the amount at the top, then tap what you spent it on. The details open so you can check them \u2014 change anything you like, or just tap <b>Save</b>. Nothing is recorded until you save.",
+    t: "add entry spend new record amount category save" },
+  { q: "Can I add it without using the mouse?",
+    a: "Yes. Type the amount, type a few letters of the category in the search box, then press <b>Enter</b>. The details open with <b>Save</b> already selected, so a second Enter saves it.",
+    t: "keyboard enter type fast shortcut" },
+  { q: "What do Spent, Got and Promised mean?",
+    a: "<b>Spent</b> is money that left you. <b>Got</b> is money that came in. <b>Promised</b> is money someone has said they will give you but has not yet \u2014 it is not counted as yours until it arrives.",
+    t: "spent got promised received due kinds types segment" },
+  { q: "What is \u201cMoney you were given\u201d?",
+    a: "Every amount you receive becomes its own pot. What you spend comes out of a pot, so you can always see how much of your pocket money is left and exactly what it went on. Tap <b>Show what it went on</b> under any pot.",
+    t: "pocket money pot given left allowance track spending against" },
+  { q: "Which pot does my spending come out of?",
+    a: "The oldest one that still has money in it, so last week\u2019s money is finished before this week\u2019s is touched. The pot being used says <b>spending from this</b>.",
+    t: "oldest first order pot which fifo" },
+  { q: "Why does it say I spent more than I had?",
+    a: "Because you did \u2014 the pot went past what was in it. The app shows it in red rather than hiding it. Nothing is blocked; it is just there so you can see it.",
+    t: "over overspent red more than negative" },
+  { q: "Something I bought should be paid back by a parent. What do I do?",
+    a: "Find it in the list at the bottom and tap the <b>\u21a9</b> button on that row. The amount is added to what you are owed and the row is marked <b>asked for</b>. The spend stays a spend, because the money really did leave you.",
+    t: "paid back claim reimburse parent owes refund arrow" },
+  { q: "What happens when they actually pay me?",
+    a: "Tap <b>Received</b> on that row under what you are owed. It becomes money in, dated today, and turns into a new pot you can spend from.",
+    t: "received paid settle mark arrived due" },
+  { q: "How do I send a summary to a parent?",
+    a: "Tap the green <b>\u279c</b> button at the top. If something is owed it sends that list; otherwise it sends a short summary of the month. WhatsApp opens with the message ready \u2014 you pick who to send it to, and nothing is sent until you tap send.",
+    t: "whatsapp send message parent summary share push" },
+  { q: "Can I chase just one thing instead of everything?",
+    a: "Yes. Each row under what you are owed has its own <b>\u279c</b> button that sends only that one.",
+    t: "single individual one receivable chase whatsapp row" },
+  { q: "Do I have to save a phone number first?",
+    a: "No. No number is stored or asked for. WhatsApp\u2019s own contact list is where you choose who it goes to.",
+    t: "phone number required contact whatsapp setup" },
+  { q: "How does a parent see my spending?",
+    a: "In <b>Settings \u203a Family</b>, type their email and tap <b>Share</b>. That gives them permission to read your Drive file \u2014 read only, so they cannot change anything. You can stop sharing from the same list whenever you want. Your Google Drive has to be connected first, under Sync.",
+    t: "family share parent monitor email read access" },
+  { q: "How do I watch my children\u2019s spending?",
+    a: "Set <b>Who is using this</b> to a grown-up, then in <b>Settings \u203a Family</b> tap <b>Add a child</b> once per child, after they have shared with you. A panel on the main screen then shows what each has spent, received and is still owed, plus their recent entries. It is read-only \u2014 nothing you do changes their records.",
+    tag: "Parents",
+    t: "parent monitor watch children family panel dashboard" },
+  { q: "Why do I have to pick my child\u2019s file from a list?",
+    a: "The app can only reach files it created for whoever is signed in. A file simply shared with you stays invisible until you open it with the app once, which is what the picker does. It is also why this stays free \u2014 the alternative needs a paid security review from Google.",
+    tag: "Parents",
+    t: "picker file google drive scope why pick add child" },
+  { q: "How current is what I see for my child?",
+    a: "It is their file as of the last time their phone synced, not live. Each card says when it was read. If their phone has been offline you are seeing older figures.",
+    tag: "Parents",
+    t: "live current stale sync delay child figures" },
+  { q: "Where is my data kept?",
+    a: "On your own device. If you connect Google Drive it also goes to a file in <b>your</b> Drive \u2014 nobody else\u2019s. There is no server in the middle holding it.",
+    t: "data privacy stored where server cloud safe" },
+  { q: "Do I need Google Drive?",
+    a: "No. Everything works without it. Connecting it means your entries survive losing the phone and follow you to another device, and it is what lets a parent see them.",
+    t: "google drive sync backup required optional" },
+  { q: "How do I put it on my home screen?",
+    a: "Tap <b>Install app</b> at the top. No such button? Some browsers do not offer one \u2014 go to <b>Settings \u203a General \u203a Install as an app</b> and tap <b>How to</b> for the steps for your browser. On an iPhone it is always Share \u203a Add to Home Screen. Once installed it opens full screen and works offline.",
+    t: "install home screen app pwa offline iphone add" },
+  { q: "Can I change the currency?",
+    a: "Yes, in <b>Settings \u203a General</b>. It starts on the rupee. Amounts are grouped the way that currency normally is, so rupees read 1,00,000 rather than 100,000.",
+    t: "currency rupee dollar symbol change money format" },
+  { q: "The categories do not fit. Can I change them?",
+    a: "<b>Settings \u203a General \u203a Who is using this</b> switches between a child\u2019s categories (snacks, canteen, toys, bus fare) and a grown-up\u2019s (rent, utilities, groceries). Switching is safe \u2014 old entries keep reading correctly either way.",
+    t: "categories change child grown up profile who is using wrong" },
+  { q: "What are the Cash, UPI, Card buttons for?",
+    a: "How you paid. Whatever you pick stays picked for next time, so you only change it when it actually changes.",
+    t: "payment method cash upi card bank sticky paid by" },
+  { q: "What does the + next to today\u2019s entries do?",
+    a: "Adds another of the same thing \u2014 same amount, category and note. It saves straight away, since there is nothing new to check. The \u2212 removes one.",
+    t: "plus minus stepper repeat again today ticket" },
+  { q: "Can I set a spending limit?",
+    a: "Yes. <b>Settings \u203a Budgets</b> sets a monthly limit per category, and a bar shows how much of each is used. Going over turns it red.",
+    t: "budget limit monthly cap category" },
+  { q: "Something repeats every month. Do I retype it?",
+    a: "No. Open <b>More fields</b> when adding it and tick <b>Repeats monthly</b>. It is added automatically each month after that.",
+    t: "recurring repeat monthly automatic salary rent pocket money" },
+  { q: "How do I get my data out?",
+    a: "<b>Settings \u203a Data</b> exports everything as a JSON backup, or the list exports as a CSV you can open in a spreadsheet. Both can be read back in.",
+    t: "export import csv json backup spreadsheet download" },
+  { q: "I changed something but the app looks the same.",
+    a: "You are probably on a saved copy. <b>Settings \u203a General</b> shows a <b>Version</b> like <b>Build 18</b>; if it is behind, close and reopen the app, or remove it from your home screen and add it again.",
+    t: "update old version stale cache build refresh not changing" }
+];
+
+function renderHelp(){
+  var q = ($("helpSearch").value || "").toLowerCase().trim();
+  var hits = FAQ.filter(function(f){
+    if (!q) return true;
+    return (f.q + " " + f.a + " " + (f.t || "")).toLowerCase().indexOf(q) !== -1;
+  });
+  $("helpNone").classList.toggle("hidden", hits.length > 0);
+  $("helpList").innerHTML = hits.map(function(f){
+    return '<details class="helpq"' + (q ? " open" : "") + '><summary>' + escapeHtml(f.q) +
+      (f.tag ? '<span class="helptag">' + escapeHtml(f.tag) + '</span>' : '') +
+      '</summary><div class="ha">' + f.a + '</div></details>';
+  }).join("");
+}
+$("btnHelp").addEventListener("click", function(){
+  $("helpSearch").value = "";
+  renderHelp();
+  $("ovHelp").hidden = false;
+});
+$("helpClose").addEventListener("click", function(){ $("ovHelp").hidden = true; });
+$("ovHelp").addEventListener("click", function(ev){ if (ev.target === this) this.hidden = true; });
+$("helpSearch").addEventListener("input", renderHelp);
 $("btnGConnect").addEventListener("click", gConnect);
 $("btnGSyncNow").addEventListener("click", function(){ gPushNow().then(function(){ toast("Synced."); }); });
 $("btnGDisconnect").addEventListener("click", function(){
