@@ -333,7 +333,7 @@ tbody tr:hover{background:var(--sub)}
     </div>
     <div class="top-actions">
       <button class="installpill hidden" id="btnInstall" title="Add Spendcue to your home screen">Install app</button>
-      <button class="icon-btn wa-btn" id="btnWhatsTop" title="Send a summary on WhatsApp">\u27a4</button>
+      <button class="icon-btn wa-btn" id="btnWhatsTop" title="Send a summary on WhatsApp" aria-label="Send a summary on WhatsApp">&#10148;</button>
       <button class="icon-btn" id="btnSettings" title="Settings">⚙</button>
       <button class="icon-btn" id="btnTheme" title="Toggle theme">◐</button>
     </div>
@@ -708,7 +708,7 @@ function currentCurrency(){ return currencyInfo(state.settings.currency, state.s
 
 // Must match the number in sw.js's cache name, so Settings can show which
 // build is really running — a stale service worker used to hide that.
-var APP_BUILD = 16;
+var APP_BUILD = 17;
 
 var STORE_KEY = "spendcue_data_v1";
 var state = load();

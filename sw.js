@@ -1,4 +1,4 @@
-const C = 'spendcue-v16';
+const C = 'spendcue-v17';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
