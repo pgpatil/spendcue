@@ -375,6 +375,10 @@ tbody tr:hover{background:var(--sub)}
       <span class="paylbl" id="qPayLbl">Paid by</span>
       <div class="paychips" id="qMethods"></div>
     </div>
+    <div class="payrow hidden" id="qFromRow">
+      <span class="paylbl" id="qFromLbl">From</span>
+      <div class="paychips" id="qFrom"></div>
+    </div>
     <input type="text" class="counter-note" id="qNote" placeholder="Add a note — what was it for? (optional)" autocomplete="off" maxlength="120">
     <input type="text" class="counter-search" id="qSearch" placeholder="Search categories and frequents · Enter adds the first match" autocomplete="off">
     <div class="chips" id="qChips"></div>
@@ -487,6 +491,10 @@ tbody tr:hover{background:var(--sub)}
       </div>
       <div class="field"><label>Note (optional)</label><input type="text" id="exNote" placeholder="e.g. Groceries at the market"></div>
     </div>
+    <div class="field" id="exGiverWrap">
+      <label id="exGiverLabel">From</label>
+      <select id="exGiver"></select>
+    </div>
     <div class="field" id="exFromWrap">
       <label>Paid from</label>
       <select id="exFrom"></select>
@@ -517,6 +525,15 @@ tbody tr:hover{background:var(--sub)}
           <option value="grown">A grown-up</option>
           <option value="kid">A child</option>
         </select>
+      </div>
+      <div class="settings-row" style="align-items:flex-start"><span class="name">Who gives you money<br><small style="color:var(--t4);font-weight:400">Rename or add — these appear as buttons when you record money in</small></span>
+        <div style="flex:none;width:150px">
+          <div id="peopleList"></div>
+          <div class="famrow" style="margin:6px 0 0">
+            <input type="text" id="personNew" placeholder="Add a name" maxlength="20">
+            <button class="btn" id="btnPersonAdd">+</button>
+          </div>
+        </div>
       </div>
       <div class="settings-row"><span class="name">Currency</span>
         <select id="setCurrency"></select>
@@ -733,7 +750,7 @@ function currentCurrency(){ return currencyInfo(state.settings.currency, state.s
 
 // Must match the number in sw.js's cache name, so Settings can show which
 // build is really running — a stale service worker used to hide that.
-var APP_BUILD = 18;
+var APP_BUILD = 19;
 
 var STORE_KEY = "spendcue_data_v1";
 var state = load();
@@ -750,6 +767,9 @@ function load(){
   if (!d.settings.currency) d.settings.currency = "\u20b9";
   if (!d.settings.theme) d.settings.theme = "system";
   if (!d.settings.profile) d.settings.profile = "kid";   // this is a children's app first
+  // Who gives the money. Seeded so it works straight away; both are renamable,
+  // and more can be added, because not every family has these two words.
+  if (!d.settings.people) d.settings.people = ["Mum", "Dad"];
   return d;
 }
 function save(){
@@ -984,7 +1004,8 @@ function renderPots(){
         '<div class="pot-name">' + escapeHtml(catById(r.category).name) +
           (r.note ? ' · <span style="color:var(--t4)">' + escapeHtml(r.note) + '</span>' : '') +
           (active ? '<span class="pot-now">spending from this</span>' : '') +
-          '<div class="pot-when">' + friendlyDate(r.date) + ' · got ' + fmt(amt) + '</div></div>' +
+          '<div class="pot-when">' + (r.from ? escapeHtml(r.from) + " · " : "") +
+            friendlyDate(r.date) + ' · got ' + fmt(amt) + '</div></div>' +
         '<div class="pot-left' + (over ? ' over' : '') + '">' + (over ? "−" : "") + fmt(Math.abs(rem)) +
           '<small>' + (over ? "over" : "left") + '</small></div></div>' +
       '<div class="pot-bar"><div class="pot-fill' + (over ? ' over' : '') + '" style="width:' + pct + '%;background:' +
@@ -1055,7 +1076,7 @@ function claimBack(id){
 function owedHeading(){ return isKid() ? "Money I am still owed" : "Money still owed to me"; }
 function dueLine(d){
   var late = d.date < todayStr();
-  return fmt(d.amount) + " \u2014 " + catById(d.category).name +
+  return fmt(d.amount) + " \u2014 " + (d.from ? d.from + " \u2014 " : "") + catById(d.category).name +
     (d.note ? " (" + d.note + ")" : "") +
     " \u2014 " + (late ? "overdue since " : "expected ") + friendlyDate(d.date);
 }
@@ -1118,7 +1139,7 @@ function renderDues(){
     var c = catById(d.category), late = d.date < t;
     return '<div class="duerow">' +
       '<span class="legend-dot" style="background:' + c.color + '"></span>' +
-      '<div class="duemain"><div class="duename">' + escapeHtml(c.name) +
+      '<div class="duemain"><div class="duename">' + (d.from ? "<b>" + escapeHtml(d.from) + "</b> · " : "") + escapeHtml(c.name) +
         (d.note ? ' · <span style="color:var(--t3)">' + escapeHtml(d.note) + '</span>' : '') + '</div>' +
         '<div class="duewhen' + (late ? ' late' : '') + '">' + (late ? "overdue since " : "expected ") + friendlyDate(d.date) + '</div></div>' +
       '<span class="dueamt">' + fmt(d.amount) + '</span>' +
@@ -1351,7 +1372,8 @@ function renderList(){
     tr.innerHTML =
       '<td>'+e.date+'</td>'+
       '<td><span class="cat-pill"><span class="cat-dot" style="background:'+c.color+'"></span>'+c.name+'</span></td>'+
-      '<td class="note-cell">'+(e.note ? escapeHtml(e.note) : '<span style="color:var(--t4)">\u2014</span>')+
+      '<td class="note-cell">'+(e.from ? '<b>'+escapeHtml(e.from)+'</b>'+(e.note ? ' \u00b7 ' : '') : '')+
+        (e.note ? escapeHtml(e.note) : (e.from ? '' : '<span style="color:var(--t4)">\u2014</span>'))+
         (e.recurring?'<span class="recur-tag">monthly</span>':'')+
         (claimFor(e.id)?'<span class="recur-tag" style="border-color:var(--amb);color:var(--amb)">'+(claimFor(e.id).kind==="due"?"asked for":"paid")+'</span>':'')+'</td>'+
       '<td>'+(e.method||"—")+'</td>'+
@@ -1393,6 +1415,7 @@ function escapeHtml(s){
 var METHODS = ["Cash", "UPI", "Card", "Bank", "Other"];
 var counterCat = "";          // chip filter
 var counterKind = "expense";  // which of Spent / Received / Yet to receive
+var counterFrom = "";         // who gave it / who owes it
 var lastQuickId = null;       // for Undo
 
 // Exact (category, amount) pairs used more than once in the last 90 days,
@@ -1463,6 +1486,17 @@ function renderCounter(){
       return '<button class="paychip" data-qmethod="' + m + '" aria-pressed="' + (cur === m) + '">' + m + '</button>';
     }).join("");
   }
+  // who gave it, or who owes it — only meaningful for money in or promised
+  var wantFrom = counterKind !== "expense" && people().length > 0;
+  $("qFromRow").classList.toggle("hidden", !wantFrom);
+  if (wantFrom){
+    $("qFromLbl").textContent = counterKind === "due" ? "Owed by" : "From";
+    if (people().indexOf(counterFrom) === -1) counterFrom = people()[0];
+    $("qFrom").innerHTML = people().map(function(n){
+      return '<button class="paychip" data-qfrom="' + escapeHtml(n) + '" aria-pressed="' +
+        (counterFrom === n) + '">' + escapeHtml(n) + '</button>';
+    }).join("");
+  }
   $("qNote").placeholder = counterKind === "due"
     ? (isKid() ? "Who owes you, and what for? (optional)" : "Who owes you, and what for? (optional)")
     : (isKid() ? "Add a note \u2014 what was it for? (optional)" : "Add a note \u2014 what was it for? (optional)");
@@ -1514,9 +1548,9 @@ function renderTicket(){
   var groups = [];
   rows.forEach(function(e){
     var amt = Math.round(Number(e.amount)*100)/100, k = kindOf(e);
-    var g = groups.find(function(x){ return x.kind === k && x.category === e.category && x.amount === amt && !x.note; });
+    var g = groups.find(function(x){ return x.kind === k && x.category === e.category && x.amount === amt && !x.note && x.from === (e.from||""); });
     if (g && !e.note) { g.ids.push(e.id); }
-    else groups.push({ kind:k, category:e.category, amount:amt, note:e.note||"", ids:[e.id] });
+    else groups.push({ kind:k, category:e.category, amount:amt, note:e.note||"", from:e.from||"", ids:[e.id] });
   });
 
   el.innerHTML = '<div class="ticket-head"><span>Today · ' + rows.length + ' entr' + (rows.length===1?"y":"ies") +
@@ -1535,7 +1569,7 @@ function renderTicket(){
 }
 
 // Record one entry immediately. No modal, no confirm — Undo is the safety net.
-function quickAdd(category, amount, note, kind){
+function quickAdd(category, amount, note, kind, from){
   kind = kind || counterKind;
   amount = Math.round(Number(amount) * 100) / 100;
   if (!(amount > 0)){
@@ -1550,6 +1584,7 @@ function quickAdd(category, amount, note, kind){
   var rec = { id: uid(), kind: kind, amount: amount, date: todayStr(), category: category,
               method: kind === "due" ? "" : (state.settings.lastMethod || METHODS[0]),
               note: note || "", recurring: false };
+  if (kind !== "expense" && (from || counterFrom)) rec.from = from || counterFrom;
   if (kind === "expense"){
     var pot = pickPot();
     if (pot) rec.fromId = pot;      // spend comes out of the money you were given
@@ -1599,7 +1634,8 @@ function startEntry(t){
     kind: counterKind,
     category: t.category,
     amount: (typed > 0 ? typed : t.amount) || 0,
-    note: ($("qNote").value || "").trim()
+    note: ($("qNote").value || "").trim(),
+    from: counterKind === "expense" ? "" : counterFrom
   });
 }
 
@@ -1618,6 +1654,12 @@ $("qMethods").addEventListener("click", function(ev){
   if (!b) return;
   state.settings.lastMethod = b.dataset.qmethod;   // sticky, so it is picked once not every time
   save();
+  renderCounter();
+});
+$("qFrom").addEventListener("click", function(ev){
+  var b = ev.target.closest("[data-qfrom]");
+  if (!b) return;
+  counterFrom = b.dataset.qfrom;
   renderCounter();
 });
 $("qNote").addEventListener("input", function(){
@@ -1652,7 +1694,7 @@ $("qTicket").addEventListener("click", function(ev){
   var g = ($("qTicket")._groups || [])[Number(parts[0])];
   if (!g) return;
   if (Number(parts[1]) > 0){
-    quickAdd(g.category, g.amount, g.note, g.kind);   // repeat the line's own kind
+    quickAdd(g.category, g.amount, g.note, g.kind, g.from);   // repeat the line's own kind and giver
   } else {
     var id = g.ids[g.ids.length - 1];
     state.expenses = state.expenses.filter(function(x){ return x.id !== id; });
@@ -1728,6 +1770,12 @@ function openExpenseModal(id, pre){
   $("exNote").value = e ? (e.note||"") : (pre ? (pre.note || "") : "");
   $("exRecurring").checked = e ? !!e.recurring : false;
   populateFromSelect(e ? (e.fromId || "") : (pickPot() || ""));
+  var giver = e ? (e.from || "") : (pre ? (pre.from || "") : counterFrom);
+  if (giver && people().indexOf(giver) === -1){
+    $("exGiver").insertAdjacentHTML("afterbegin",
+      '<option value="' + escapeHtml(giver) + '">' + escapeHtml(giver) + '</option>');
+  }
+  $("exGiver").value = giver;
   $("ovExpense").hidden = false;
   // an amount already typed means the next thing wanted is Save, not the keypad
   if (pre && pre.amount > 0) $("exSave").focus(); else $("exAmount").focus();
@@ -1749,6 +1797,17 @@ function applyModalKind(){
   populateModalCategories();
   // only a spend can come out of a pot, and only if any money was recorded
   $("exFromWrap").style.display = (k === "expense" && incomeRecords().length) ? "" : "none";
+  // who gave it only applies to money in or promised
+  var showGiver = k !== "expense" && people().length > 0;
+  $("exGiverWrap").style.display = showGiver ? "" : "none";
+  $("exGiverLabel").textContent = k === "due" ? "Owed by" : "From";
+  if (showGiver){
+    var cur = $("exGiver").value;
+    $("exGiver").innerHTML = people().map(function(n){
+      return '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+    }).join("") + '<option value="">Someone else</option>';
+    if (cur) $("exGiver").value = cur;
+  }
   $("exCatLabel").textContent = k === "expense" ? "Category" : k === "income" ? "Where it came from" : "Who owes you / what for";
   $("exDateLabel").textContent = k === "due" ? "Expected on" : "Date";
   $("exNote").placeholder = k === "expense" ? "e.g. Groceries at the market"
@@ -1780,12 +1839,14 @@ $("exSave").addEventListener("click", function(){
   var kind = $("exKind").value;
   var method = kind === "due" ? "" : $("exMethod").value;
   var note = $("exNote").value.trim();
+  var giver = kind === "expense" ? "" : $("exGiver").value;
   var recurring = kind === "due" ? false : $("exRecurring").checked;
   if (method) state.settings.lastMethod = method;   // the counter reuses this instead of asking
 
   if (editingId){
     var e = state.expenses.find(function(x){ return x.id===editingId; });
     e.amount=amount; e.date=date; e.category=category; e.method=method; e.note=note; e.kind=kind;
+    if (giver) e.from = giver; else delete e.from;
     if (kind === "expense" && $("exFrom").value) e.fromId = $("exFrom").value; else delete e.fromId;
     if (recurring && !e.recurring){
       var tpl = {id:uid(), kind:kind, amount:amount, category:category, note:note, method:method, day:new Date(date).getDate()};
@@ -1799,6 +1860,7 @@ $("exSave").addEventListener("click", function(){
     }
   } else {
     var rec = {id: uid(), kind:kind, amount:amount, date:date, category:category, method:method, note:note, recurring:false};
+    if (giver) rec.from = giver;
     if (kind === "expense" && $("exFrom").value) rec.fromId = $("exFrom").value;
     if (recurring){
       var tpl2 = {id:uid(), kind:kind, amount:amount, category:category, note:note, method:method, day:new Date(date).getDate()};
@@ -1917,6 +1979,7 @@ function parseCsvLine(line){
 /* ---------- settings modal ---------- */
 function openSettings(){
   renderCurrencyPicker();
+  renderPeople();
   $("setProfile").value = isKid() ? "kid" : "grown";
   $("setBuild").textContent = "Build " + APP_BUILD;
   renderFamily();
@@ -1949,6 +2012,33 @@ $("setProfile").addEventListener("change", function(){
   renderFamily();
   renderAll();
 });
+function renderPeople(){
+  $("peopleList").innerHTML = people().length
+    ? people().map(function(n, i){
+        return '<div class="famitem" style="padding:4px 0"><div class="fi-main">' + escapeHtml(n) + '</div>' +
+          '<button data-rmperson="' + i + '" title="Remove">\u2715</button></div>';
+      }).join("")
+    : '<div class="kidempty" style="padding:2px 0">Nobody added yet.</div>';
+  $("peopleList").querySelectorAll("[data-rmperson]").forEach(function(b){
+    b.addEventListener("click", function(){
+      people().splice(Number(b.dataset.rmperson), 1);
+      save(); renderPeople(); renderCounter();
+    });
+  });
+}
+function addPerson(){
+  var v = ($("personNew").value || "").trim();
+  if (!v) return;
+  if (people().indexOf(v) !== -1){ toast(v + " is already there."); return; }
+  people().push(v);
+  $("personNew").value = "";
+  save(); renderPeople(); renderCounter();
+}
+$("btnPersonAdd").addEventListener("click", addPerson);
+$("personNew").addEventListener("keydown", function(ev){
+  if (ev.key === "Enter"){ ev.preventDefault(); addPerson(); }
+});
+
 function renderCurrencyPicker(){
   var cur = state.settings.currency;
   var known = currentCurrency();
@@ -2290,6 +2380,7 @@ function gDisconnect(){
 // restricted to the Picker API. Public by design, like the client id.
 var GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY";
 
+function people(){ return state.settings.people || (state.settings.people = []); }
 function famShares(){ return state.settings.sharedWith || (state.settings.sharedWith = []); }
 function famKids(){ return state.settings.family || (state.settings.family = []); }
 
