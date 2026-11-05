@@ -58,6 +58,9 @@ input,select{font:inherit}
 .top-actions{display:flex;gap:8px;align-items:center}
 .icon-btn{width:34px;height:34px;border-radius:9px;border:1px solid var(--bdr);background:var(--card);color:var(--t2);display:flex;align-items:center;justify-content:center}
 .icon-btn:hover{background:var(--sub)}
+.wa-btn{border-color:#25D366;color:#128C4A;background:#eafaf0;font-size:15px}
+.wa-btn:hover{background:#25D366;color:#fff}
+:root[data-theme="dark"] .wa-btn,:root:not([data-theme="light"]) .wa-btn{background:#15321f;color:#6ee7a0;border-color:#1f7a45}
 .installpill{height:34px;border-radius:9px;border:1px solid var(--accent);background:var(--accent);color:#fff;padding:0 12px;font-size:12.5px;font-weight:600;white-space:nowrap}
 .installpill:hover{background:var(--accent-d);border-color:var(--accent-d)}
 /* install steps */
@@ -330,6 +333,7 @@ tbody tr:hover{background:var(--sub)}
     </div>
     <div class="top-actions">
       <button class="installpill hidden" id="btnInstall" title="Add Spendcue to your home screen">Install app</button>
+      <button class="icon-btn wa-btn" id="btnWhatsTop" title="Send a summary on WhatsApp">\u27a4</button>
       <button class="icon-btn" id="btnSettings" title="Settings">⚙</button>
       <button class="icon-btn" id="btnTheme" title="Toggle theme">◐</button>
     </div>
@@ -501,9 +505,6 @@ tbody tr:hover{background:var(--sub)}
           <option value="grown">A grown-up</option>
           <option value="kid">A child</option>
         </select>
-      </div>
-      <div class="settings-row"><span class="name">Parent's WhatsApp number<br><small style="color:var(--t4);font-weight:400">Optional, with country code. Leave empty to pick the contact yourself</small></span>
-        <input type="tel" id="setPhone" placeholder="91XXXXXXXXXX" style="width:140px;border:1px solid var(--bdr2);background:var(--bg);color:var(--t1);border-radius:8px;padding:7px">
       </div>
       <div class="settings-row"><span class="name">Currency</span>
         <select id="setCurrency"></select>
@@ -707,7 +708,7 @@ function currentCurrency(){ return currencyInfo(state.settings.currency, state.s
 
 // Must match the number in sw.js's cache name, so Settings can show which
 // build is really running — a stale service worker used to hide that.
-var APP_BUILD = 15;
+var APP_BUILD = 16;
 
 var STORE_KEY = "spendcue_data_v1";
 var state = load();
@@ -1049,12 +1050,36 @@ function owedSummary(){
     "Total: " + fmt(sumOf(dues)) + "\n\n" +
     "This month: got " + fmt(got) + ", spent " + fmt(spent) + ".";
 }
+// No number is stored or asked for: WhatsApp's own contact list is the
+// chooser, so a child picks whichever parent they want to send to.
 function sendOnWhatsApp(text){
-  if (typeof text !== "string") text = owedSummary();
-  if (!text){ toast("Nothing is outstanding right now."); return; }
-  var num = (state.settings.parentPhone || "").replace(/[^0-9]/g, "");
-  var url = "https://wa.me/" + num + "?text=" + encodeURIComponent(text);
-  window.open(url, "_blank", "noopener");
+  if (typeof text !== "string") text = owedSummary() || monthSummary();
+  if (!text){ toast("Nothing to send yet."); return; }
+  window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank", "noopener");
+}
+
+// Something worth sending even when nobody owes anything.
+function monthSummary(){
+  var spent = sumOf(expensesInMonth(view.year, view.month));
+  var got = sumOf(incomeInMonth(view.year, view.month));
+  var left = incomeRecords().reduce(function(a, r){ return a + Math.max(0, remainingOf(r)); }, 0);
+  var dues = outstandingDues();
+  var recent = state.expenses
+    .filter(function(e){ return kindOf(e) === "expense"; })
+    .sort(function(a, b){ return a.date < b.date ? 1 : -1; })
+    .slice(0, 5);
+  var out = MONTH_NAMES[view.month] + " " + view.year + "\n\n" +
+    (isKid() ? "Got: " : "Received: ") + fmt(got) + "\n" +
+    "Spent: " + fmt(spent) + "\n" +
+    (left > 0 ? "Left to spend: " + fmt(left) + "\n" : "");
+  if (dues.length) out += "Still owed to me: " + fmt(sumOf(dues)) + "\n";
+  if (recent.length){
+    out += "\nLately:\n" + recent.map(function(e){
+      return "\u2022 " + fmt(e.amount) + " \u2014 " + catById(e.category).name +
+        (e.note ? " (" + e.note + ")" : "") + " \u2014 " + friendlyDate(e.date);
+    }).join("\n");
+  }
+  return out;
 }
 
 function renderDues(){
@@ -1868,7 +1893,6 @@ function parseCsvLine(line){
 function openSettings(){
   renderCurrencyPicker();
   $("setProfile").value = isKid() ? "kid" : "grown";
-  $("setPhone").value = state.settings.parentPhone || "";
   $("setBuild").textContent = "Build " + APP_BUILD;
   renderFamily();
   $("setTheme").value = state.settings.theme;
@@ -1892,10 +1916,6 @@ document.querySelectorAll(".tab").forEach(function(tab){
   });
 });
 
-$("setPhone").addEventListener("input", function(){
-  state.settings.parentPhone = this.value.trim();
-  save();
-});
 $("setProfile").addEventListener("change", function(){
   state.settings.profile = this.value;
   counterCat = "";                       // the old chip belongs to the other category set
@@ -2447,7 +2467,8 @@ function renderFamilyPanel(){
   }).join("");
 }
 
-$("btnWhats").addEventListener("click", sendOnWhatsApp);
+$("btnWhats").addEventListener("click", function(){ sendOnWhatsApp(); });
+$("btnWhatsTop").addEventListener("click", function(){ sendOnWhatsApp(); });
 $("btnGConnect").addEventListener("click", gConnect);
 $("btnGSyncNow").addEventListener("click", function(){ gPushNow().then(function(){ toast("Synced."); }); });
 $("btnGDisconnect").addEventListener("click", function(){
