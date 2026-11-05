@@ -1329,12 +1329,12 @@ function renderCounter(){
     : counterKind === "income" ? (kid ? "Money you got" : "Record money received")
     : (kid ? "Money promised to you" : "Record money owed to you");
   $("qHint").textContent = counterKind === "expense"
-    ? (kid ? "Type how much, then tap what you spent it on."
-           : "Type the amount, tap a category. Enter adds the first match.")
+    ? (kid ? "Type how much, then tap what you spent it on \u2014 then check and save."
+           : "Type the amount and tap a category; check the details, then save.")
     : counterKind === "income"
       ? (kid ? "Type how much, then tap who gave it to you."
              : "Money received. Type the amount, tap where it came from.")
-      : (kid ? "Someone owes you. Add it now, tick it off when you get it."
+      : (kid ? "Someone owes you. Add it, then tick it off when you get it."
              : "Money owed to you. Record it now, mark it received when it arrives.");
   $("amtBox").className = "amtbox" + (counterKind === "expense" ? "" : " in-" + counterKind);
 
@@ -1472,11 +1472,21 @@ $("qTiles").addEventListener("click", function(ev){
   if (!b) return;
   var t = counterTiles()[Number(b.dataset.qadd)];
   if (!t) return;
-  // a frequent carries its own amount, like a menu item's price;
-  // a typed amount still wins, so you can reuse the category at a new price
-  var typed = parseFloat($("qAmount").value);
-  quickAdd(t.category, (typed > 0 ? typed : t.amount));
+  startEntry(t);
 });
+
+// A tile picks the category and hands everything to the dialog to confirm.
+// A frequent carries its own amount, like a menu item's price; a typed
+// amount still wins, so a category can be reused at a new price.
+function startEntry(t){
+  var typed = parseFloat($("qAmount").value);
+  openExpenseModal(null, {
+    kind: counterKind,
+    category: t.category,
+    amount: (typed > 0 ? typed : t.amount) || 0,
+    note: ($("qNote").value || "").trim()
+  });
+}
 
 $("qKinds").addEventListener("click", function(ev){
   var b = ev.target.closest("[data-qkind]");
@@ -1514,8 +1524,7 @@ function counterEnter(ev){
   var t = counterTiles()[0];
   if (!t) return;
   ev.preventDefault();
-  var typed = parseFloat($("qAmount").value);
-  quickAdd(t.category, (typed > 0 ? typed : t.amount));
+  startEntry(t);
 }
 $("qSearch").addEventListener("keydown", counterEnter);
 $("qAmount").addEventListener("keydown", counterEnter);
@@ -1581,25 +1590,33 @@ document.querySelectorAll("thead th[data-sort]").forEach(function(th){
 
 /* ---------- expense modal ---------- */
 var editingId = null;
-function openExpenseModal(id){
+// `pre` carries what the counter already knows, so tapping a tile opens this
+// with everything filled in and Save one tap away.
+function openExpenseModal(id, pre){
   editingId = id || null;
   var e = id ? state.expenses.find(function(x){ return x.id===id; }) : null;
-  var k = e ? kindOf(e) : counterKind;
+  pre = pre || null;
+  fromCounter = !!pre;
+  var k = e ? kindOf(e) : (pre ? pre.kind : counterKind);
   $("exKind").value = k;
   applyModalKind();
   $("expModalTitle").textContent = e
     ? (k === "expense" ? "Edit expense" : k === "income" ? "Edit receipt" : "Edit what you are owed")
-    : (k === "expense" ? "Add expense" : k === "income" ? "Record money received" : "Record money owed to you");
-  $("exAmount").value = e ? e.amount : "";
+    : (k === "expense" ? (isKid() ? "Check and save" : "Add expense")
+      : k === "income" ? "Record money received" : "Record money owed to you");
+  $("exAmount").value = e ? e.amount : (pre && pre.amount > 0 ? pre.amount : "");
   $("exDate").value = e ? e.date : (view.year===new Date().getFullYear() && view.month===new Date().getMonth() ? todayStr() : monthBounds(view.year,view.month).from);
-  $("exCategory").value = e ? e.category : catsFor(k === "expense" ? "expense" : "income")[0].id;
+  $("exCategory").value = e ? e.category
+    : (pre ? pre.category : catsFor(k === "expense" ? "expense" : "income")[0].id);
   $("exMethod").value = e ? (e.method || METHODS[0]) : (state.settings.lastMethod || METHODS[0]);
-  $("exNote").value = e ? (e.note||"") : "";
+  $("exNote").value = e ? (e.note||"") : (pre ? (pre.note || "") : "");
   $("exRecurring").checked = e ? !!e.recurring : false;
   populateFromSelect(e ? (e.fromId || "") : (pickPot() || ""));
   $("ovExpense").hidden = false;
-  $("exAmount").focus();
+  // an amount already typed means the next thing wanted is Save, not the keypad
+  if (pre && pre.amount > 0) $("exSave").focus(); else $("exAmount").focus();
 }
+var fromCounter = false;
 // Field labels and the category list follow the chosen kind.
 function populateFromSelect(sel){
   var inc = incomeRecords();
@@ -1626,7 +1643,15 @@ function applyModalKind(){
 }
 $("exKind").addEventListener("change", applyModalKind);
 
-function closeExpenseModal(){ $("ovExpense").hidden = true; editingId = null; }
+function closeExpenseModal(){ $("ovExpense").hidden = true; editingId = null; fromCounter = false; }
+// Everything the counter was holding has been used, so wipe it ready for the
+// next entry. The method stays — it is sticky by design.
+function clearCounter(){
+  $("qAmount").value = "";
+  $("qSearch").value = "";
+  $("qNote").value = "";
+  $("qNote").classList.remove("has");
+}
 $("btnAdd").addEventListener("click", function(){ openExpenseModal(null); });
 $("exCancel").addEventListener("click", closeExpenseModal);
 $("ovExpense").addEventListener("click", function(ev){ if (ev.target === this) closeExpenseModal(); });
@@ -1667,7 +1692,14 @@ $("exSave").addEventListener("click", function(){
     state.expenses.push(rec);
   }
   save();
+  var cameFromCounter = fromCounter;
   closeExpenseModal();
+  if (cameFromCounter){
+    clearCounter();
+    // an entry always lands on its own date; show the month it landed in
+    var d = date.split("-");
+    view.year = Number(d[0]); view.month = Number(d[1]) - 1;
+  }
   renderAll();
   toast("Saved.");
 });
