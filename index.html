@@ -179,6 +179,13 @@ tbody tr:hover{background:var(--sub)}
 .amtbox input{flex:1;min-width:0;border:none;background:transparent;color:var(--t1);font-size:24px;font-weight:700;padding:10px 0;outline:none;letter-spacing:-.01em}
 .amtbox input::-webkit-outer-spin-button,.amtbox input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .amtbox input[type=number]{-moz-appearance:textfield}
+.payrow{display:flex;align-items:center;gap:8px;margin-top:9px}
+.paylbl{font-size:11.5px;color:var(--t4);text-transform:uppercase;letter-spacing:.04em;flex:none}
+.paychips{display:flex;gap:5px;overflow-x:auto;flex:1;min-width:0;padding-bottom:2px}
+.paychip{flex:none;border:1px solid var(--bdr2);background:var(--card);color:var(--t3);border-radius:999px;padding:4px 11px;font-size:12px;font-weight:600;white-space:nowrap}
+.paychip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.counter-note{width:100%;margin-top:9px;border:1px solid var(--bdr2);background:var(--bg);color:var(--t1);border-radius:9px;padding:8px 10px;font-size:13px}
+.counter-note.has{border-color:var(--accent)}
 .counter-search{width:100%;margin-top:9px;border:1px solid var(--bdr2);background:var(--bg);color:var(--t1);border-radius:9px;padding:8px 10px;font-size:13px}
 .chips{display:flex;gap:6px;overflow-x:auto;margin-top:9px;padding-bottom:2px;-webkit-overflow-scrolling:touch}
 .chip{flex:none;border:1px solid var(--bdr2);background:var(--card);color:var(--t3);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;white-space:nowrap}
@@ -323,6 +330,11 @@ tbody tr:hover{background:var(--sub)}
         <input type="number" id="qAmount" step="0.01" min="0" inputmode="decimal" placeholder="0.00" aria-label="Amount">
       </label>
     </div>
+    <div class="payrow" id="qPayRow">
+      <span class="paylbl" id="qPayLbl">Paid by</span>
+      <div class="paychips" id="qMethods"></div>
+    </div>
+    <input type="text" class="counter-note" id="qNote" placeholder="Add a note — what was it for? (optional)" autocomplete="off" maxlength="120">
     <input type="text" class="counter-search" id="qSearch" placeholder="Search categories and frequents · Enter adds the first match" autocomplete="off">
     <div class="chips" id="qChips"></div>
     <div class="tiles" id="qTiles"></div>
@@ -424,7 +436,7 @@ tbody tr:hover{background:var(--sub)}
     <div class="field-row">
       <div class="field" id="exMethodWrap"><label>Payment method</label>
         <select id="exMethod">
-          <option>Card</option><option>Cash</option><option>Bank transfer</option><option>UPI</option><option>Other</option>
+          <option>Cash</option><option>UPI</option><option>Card</option><option>Bank</option><option>Other</option>
         </select>
       </div>
       <div class="field"><label>Note (optional)</label><input type="text" id="exNote" placeholder="e.g. Groceries at the market"></div>
@@ -1263,6 +1275,7 @@ function escapeHtml(s){
    Either way a tap saves straight away (with Undo) — expenses aren't one
    settled transaction, so there's no bill to hold them on. */
 
+var METHODS = ["Cash", "UPI", "Card", "Bank", "Other"];
 var counterCat = "";          // chip filter
 var counterKind = "expense";  // which of Spent / Received / Yet to receive
 var lastQuickId = null;       // for Undo
@@ -1324,6 +1337,21 @@ function renderCounter(){
       : (kid ? "Someone owes you. Add it now, tick it off when you get it."
              : "Money owed to you. Record it now, mark it received when it arrives.");
   $("amtBox").className = "amtbox" + (counterKind === "expense" ? "" : " in-" + counterKind);
+
+  // nothing has been paid on a promise yet, so it has no payment method
+  var wantPay = counterKind !== "due";
+  $("qPayRow").classList.toggle("hidden", !wantPay);
+  if (wantPay){
+    $("qPayLbl").textContent = counterKind === "income" ? (isKid() ? "Given as" : "Received by") : "Paid by";
+    var cur = state.settings.lastMethod || METHODS[0];
+    $("qMethods").innerHTML = METHODS.map(function(m){
+      return '<button class="paychip" data-qmethod="' + m + '" aria-pressed="' + (cur === m) + '">' + m + '</button>';
+    }).join("");
+  }
+  $("qNote").placeholder = counterKind === "due"
+    ? (isKid() ? "Who owes you, and what for? (optional)" : "Who owes you, and what for? (optional)")
+    : (isKid() ? "Add a note \u2014 what was it for? (optional)" : "Add a note \u2014 what was it for? (optional)");
+  $("qNote").classList.toggle("has", !!$("qNote").value.trim());
 
   var used = {};
   state.expenses.forEach(function(e){ if (kindOf(e) === counterKind) used[e.category] = true; });
@@ -1402,8 +1430,11 @@ function quickAdd(category, amount, note, kind){
     toast("Enter an amount first.");
     return false;
   }
+  // the note box feeds the entry unless a repeat passed its own note in
+  if (note == null) note = ($("qNote").value || "").trim();
   var rec = { id: uid(), kind: kind, amount: amount, date: todayStr(), category: category,
-              method: state.settings.lastMethod || "Card", note: note || "", recurring: false };
+              method: kind === "due" ? "" : (state.settings.lastMethod || METHODS[0]),
+              note: note || "", recurring: false };
   if (kind === "expense"){
     var pot = pickPot();
     if (pot) rec.fromId = pot;      // spend comes out of the money you were given
@@ -1413,6 +1444,8 @@ function quickAdd(category, amount, note, kind){
   save();
   $("qAmount").value = "";
   $("qSearch").value = "";
+  $("qNote").value = "";
+  $("qNote").classList.remove("has");
   // an entry always lands on today, so come back to today's month to show it
   var now = new Date();
   view.year = now.getFullYear(); view.month = now.getMonth();
@@ -1454,6 +1487,18 @@ $("qKinds").addEventListener("click", function(ev){
   renderCounter();
   $("qAmount").focus();
 });
+
+$("qMethods").addEventListener("click", function(ev){
+  var b = ev.target.closest("[data-qmethod]");
+  if (!b) return;
+  state.settings.lastMethod = b.dataset.qmethod;   // sticky, so it is picked once not every time
+  save();
+  renderCounter();
+});
+$("qNote").addEventListener("input", function(){
+  this.classList.toggle("has", !!this.value.trim());
+});
+$("qNote").addEventListener("keydown", counterEnter);
 
 $("qChips").addEventListener("click", function(ev){
   var b = ev.target.closest("[data-qcat]");
@@ -1548,7 +1593,7 @@ function openExpenseModal(id){
   $("exAmount").value = e ? e.amount : "";
   $("exDate").value = e ? e.date : (view.year===new Date().getFullYear() && view.month===new Date().getMonth() ? todayStr() : monthBounds(view.year,view.month).from);
   $("exCategory").value = e ? e.category : catsFor(k === "expense" ? "expense" : "income")[0].id;
-  $("exMethod").value = e ? (e.method||"Card") : "Card";
+  $("exMethod").value = e ? (e.method || METHODS[0]) : (state.settings.lastMethod || METHODS[0]);
   $("exNote").value = e ? (e.note||"") : "";
   $("exRecurring").checked = e ? !!e.recurring : false;
   populateFromSelect(e ? (e.fromId || "") : (pickPot() || ""));
