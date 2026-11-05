@@ -232,6 +232,9 @@ tbody tr:hover{background:var(--sub)}
 .duewhen{font-size:11.5px;color:var(--t4);margin-top:2px}
 .duewhen.late{color:var(--red);font-weight:600}
 .dueamt{font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.btn.wa{display:block;width:100%;margin-top:12px;border-color:#25D366;color:#128C4A;background:#eafaf0;font-weight:600}
+.btn.wa:hover{background:#25D366;color:#fff;border-color:#25D366}
+:root[data-theme="dark"] .btn.wa,:root:not([data-theme="light"]) .btn.wa{background:#15321f;color:#6ee7a0;border-color:#1f7a45}
 .btn-got{border:1px solid var(--grn);background:var(--grn-l);color:var(--grn);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;white-space:nowrap}
 .btn-got:hover{background:var(--grn);color:#fff}
 .duedrop{border:1px solid var(--bdr);background:var(--card);color:var(--t4);border-radius:8px;width:28px;height:28px;flex:none}
@@ -355,6 +358,7 @@ tbody tr:hover{background:var(--sub)}
   <div class="panel" id="duePanel" style="margin-bottom:16px">
     <h2><span id="dueTitle">Yet to receive</span> <small id="dueTotalLbl"></small></h2>
     <div id="dueList"></div>
+    <button class="btn wa" id="btnWhats">Send this to a parent on WhatsApp</button>
   </div>
 
   <div class="panel" id="budgetPanel" style="margin-bottom:16px">
@@ -451,6 +455,9 @@ tbody tr:hover{background:var(--sub)}
           <option value="grown">A grown-up</option>
           <option value="kid">A child</option>
         </select>
+      </div>
+      <div class="settings-row"><span class="name">Parent's WhatsApp number<br><small style="color:var(--t4);font-weight:400">Optional, with country code. Leave empty to pick the contact yourself</small></span>
+        <input type="tel" id="setPhone" placeholder="91XXXXXXXXXX" style="width:140px;border:1px solid var(--bdr2);background:var(--bg);color:var(--t1);border-radius:8px;padding:7px">
       </div>
       <div class="settings-row"><span class="name">Currency</span>
         <select id="setCurrency"></select>
@@ -636,6 +643,7 @@ function load(){
   if (!d.settings) d.settings = {};
   if (!d.settings.currency) d.settings.currency = "\u20b9";
   if (!d.settings.theme) d.settings.theme = "system";
+  if (!d.settings.profile) d.settings.profile = "kid";   // this is a children's app first
   return d;
 }
 function save(){
@@ -912,6 +920,59 @@ var openPots = {};
    spent and received totals until it is actually in hand; marking it
    received turns it into income dated today, so it lands in the month it
    really arrived rather than the month it was promised. */
+/* ---------- getting money back from a parent ----------
+   A child buys something a parent said they would pay for. The spend stays
+   a spend — the money really did leave — and a separate "promised" entry
+   records what is owed back, pointing at the spend so the two stay joined.
+   When the parent pays, the existing Received button turns it into money in,
+   which then becomes a pot to spend from like any other. */
+function claimFor(expenseId){
+  return state.expenses.find(function(x){ return x.forExpenseId === expenseId; }) || null;
+}
+function claimBack(id){
+  var e = state.expenses.find(function(x){ return x.id === id; });
+  if (!e || claimFor(id)) return;
+  var who = e.note ? e.note : catById(e.category).name;
+  var rec = { id: uid(), kind: "due", amount: Number(e.amount), date: todayStr(),
+              category: "in_lent", note: who, recurring: false, forExpenseId: id };
+  state.expenses.push(rec);
+  save(); renderAll();
+  toast(fmt(e.amount) + " added to what you are owed", "Undo", function(){
+    state.expenses = state.expenses.filter(function(x){ return x.id !== rec.id; });
+    save(); renderAll();
+  });
+}
+
+/* ---------- send a summary on WhatsApp ----------
+   Opens WhatsApp with the message ready; nothing is sent without the child
+   tapping send, and no number is needed unless one has been saved. */
+function owedSummary(){
+  var dues = outstandingDues().slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
+  if (!dues.length) return null;
+  var t = todayStr();
+  var lines = dues.map(function(d){
+    var late = d.date < t;
+    return "\u2022 " + fmt(d.amount) + " \u2014 " + catById(d.category).name +
+      (d.note ? " (" + d.note + ")" : "") +
+      " \u2014 " + (late ? "overdue since " : "expected ") + friendlyDate(d.date);
+  });
+  var spent = sumOf(expensesInMonth(view.year, view.month));
+  var got = sumOf(incomeInMonth(view.year, view.month));
+  return (isKid() ? "Money I am still owed" : "Money still owed to me") + "\n" +
+    MONTH_NAMES[view.month] + " " + view.year + "\n\n" +
+    lines.join("\n") + "\n\n" +
+    "Total: " + fmt(sumOf(dues)) + "\n\n" +
+    "This month: got " + fmt(got) + ", spent " + fmt(spent) + ".\n" +
+    "\u2014 sent from Spendcue";
+}
+function sendOnWhatsApp(){
+  var text = owedSummary();
+  if (!text){ toast("Nothing is outstanding right now."); return; }
+  var num = (state.settings.parentPhone || "").replace(/[^0-9]/g, "");
+  var url = "https://wa.me/" + num + "?text=" + encodeURIComponent(text);
+  window.open(url, "_blank", "noopener");
+}
+
 function renderDues(){
   var dues = outstandingDues().slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
   var panel = $("duePanel"), out = $("dueList");
@@ -1149,16 +1210,24 @@ function renderList(){
     tr.innerHTML =
       '<td>'+e.date+'</td>'+
       '<td><span class="cat-pill"><span class="cat-dot" style="background:'+c.color+'"></span>'+c.name+'</span></td>'+
-      '<td class="note-cell">'+(e.note ? escapeHtml(e.note) : '<span style="color:var(--t4)">—</span>')+(e.recurring?'<span class="recur-tag">monthly</span>':'')+'</td>'+
+      '<td class="note-cell">'+(e.note ? escapeHtml(e.note) : '<span style="color:var(--t4)">\u2014</span>')+
+        (e.recurring?'<span class="recur-tag">monthly</span>':'')+
+        (claimFor(e.id)?'<span class="recur-tag" style="border-color:var(--amb);color:var(--amb)">'+(claimFor(e.id).kind==="due"?"asked for":"paid")+'</span>':'')+'</td>'+
       '<td>'+(e.method||"—")+'</td>'+
       '<td class="amt-cell '+(kindOf(e)==="income"?"pos":kindOf(e)==="due"?"owed":"")+'">'+
         (kindOf(e)==="income"?"+":kindOf(e)==="due"?"":"−")+fmt(e.amount)+
         (kindOf(e)==="due"?'<span class="owed-tag">owed</span>':'')+'</td>'+
-      '<td><div class="row-actions"><button data-edit="'+e.id+'" title="Edit">✎</button><button data-del="'+e.id+'" title="Delete">✕</button></div></td>';
+      '<td><div class="row-actions">' +
+        (kindOf(e)==="expense" && !claimFor(e.id)
+          ? '<button data-claim="'+e.id+'" title="Ask to be paid back for this">\u21a9</button>' : '') +
+        '<button data-edit="'+e.id+'" title="Edit">\u270e</button><button data-del="'+e.id+'" title="Delete">\u2715</button></div></td>';
     elTbody.appendChild(tr);
   });
   elTbody.querySelectorAll("[data-edit]").forEach(function(b){
     b.addEventListener("click", function(){ openExpenseModal(b.dataset.edit); });
+  });
+  elTbody.querySelectorAll("[data-claim]").forEach(function(b){
+    b.addEventListener("click", function(){ claimBack(b.dataset.claim); });
   });
   elTbody.querySelectorAll("[data-del]").forEach(function(b){
     b.addEventListener("click", function(){ deleteExpense(b.dataset.del); });
@@ -1557,6 +1626,13 @@ function deleteExpense(id){
       : "Delete this expense?")) return;
   // never leave a spend pointing at a pot that no longer exists
   drawn.forEach(function(x){ delete x.fromId; });
+  // a pending claim for a deleted spend is meaningless; one already paid is
+  // real money that arrived, so that stays and simply loses its back-link
+  var claim = claimFor(id);
+  if (claim){
+    if (kindOf(claim) === "due") state.expenses = state.expenses.filter(function(x){ return x.id !== claim.id; });
+    else delete claim.forExpenseId;
+  }
   state.expenses = state.expenses.filter(function(x){ return x.id!==id; });
   if (e.recurring && e.sourceId && confirm("Also stop this from repeating monthly?")){
     state.recurring = state.recurring.filter(function(t){ return t.id !== e.sourceId; });
@@ -1635,6 +1711,7 @@ function parseCsvLine(line){
 function openSettings(){
   renderCurrencyPicker();
   $("setProfile").value = isKid() ? "kid" : "grown";
+  $("setPhone").value = state.settings.parentPhone || "";
   $("setTheme").value = state.settings.theme;
   $("setLink").checked = state.settings.linkSpending !== false;
   renderBudgetSettings();
@@ -1656,6 +1733,10 @@ document.querySelectorAll(".tab").forEach(function(tab){
   });
 });
 
+$("setPhone").addEventListener("input", function(){
+  state.settings.parentPhone = this.value.trim();
+  save();
+});
 $("setProfile").addEventListener("change", function(){
   state.settings.profile = this.value;
   counterCat = "";                       // the old chip belongs to the other category set
@@ -1992,6 +2073,7 @@ function gDisconnect(){
   toast("Disconnected from Google Drive.");
 }
 
+$("btnWhats").addEventListener("click", sendOnWhatsApp);
 $("btnGConnect").addEventListener("click", gConnect);
 $("btnGSyncNow").addEventListener("click", function(){ gPushNow().then(function(){ toast("Synced."); }); });
 $("btnGDisconnect").addEventListener("click", function(){
