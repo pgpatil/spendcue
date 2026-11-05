@@ -210,6 +210,31 @@ tbody tr:hover{background:var(--sub)}
 .tline .tname{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tline .tamt{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
 .tamt.pos,.ticket-head b.pos{color:var(--grn)}
+/* family */
+.famrow{display:flex;gap:8px;margin-bottom:10px}
+.famrow input{flex:1;min-width:0;border:1px solid var(--bdr2);background:var(--bg);color:var(--t1);border-radius:8px;padding:8px 10px;font-size:13px}
+.famitem{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bdr);font-size:13px}
+.famitem:last-child{border-bottom:none}
+.famitem .fi-main{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.famitem .fi-sub{font-size:11.5px;color:var(--t4)}
+.famitem button{border:1px solid var(--bdr);background:var(--card);color:var(--t4);border-radius:7px;width:26px;height:26px;flex:none;line-height:1}
+.famitem button:hover{color:var(--red);border-color:var(--red-l)}
+/* the parent's read-only view of each child */
+.kidcard{border:1px solid var(--bdr);border-radius:11px;padding:12px;margin-bottom:10px;background:var(--sub)}
+.kidcard:last-child{margin-bottom:0}
+.kidtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
+.kidname{font-size:14px;font-weight:600}
+.kidwhen{font-size:11px;color:var(--t4)}
+.kidfigs{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.kidfig b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+.kidfig span{font-size:10.5px;color:var(--t4);text-transform:uppercase;letter-spacing:.04em}
+.kidfig.owed b{color:var(--amb)}
+.kidlines{font-size:12px;color:var(--t3)}
+.kidline{display:flex;justify-content:space-between;gap:8px;padding:3px 0}
+.kidline span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kidline .n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.kidempty{font-size:12px;color:var(--t4);padding:6px 0}
+
 /* pocket money pots */
 .pot{padding:11px 0;border-bottom:1px solid var(--bdr)}
 .pot:last-child{border-bottom:none}
@@ -365,6 +390,11 @@ tbody tr:hover{background:var(--sub)}
     </div>
   </div>
 
+  <div class="panel" id="famPanel" style="margin-bottom:16px">
+    <h2>Your children <small id="famPanelHint"></small></h2>
+    <div id="famPanelList"></div>
+  </div>
+
   <div class="panel" id="potPanel" style="margin-bottom:16px">
     <h2><span id="potTitle">Money you were given</span> <small id="potHint"></small></h2>
     <div id="potList"></div>
@@ -461,6 +491,7 @@ tbody tr:hover{background:var(--sub)}
       <div class="tab active" data-tab="general">General</div>
       <div class="tab" data-tab="budgets">Budgets</div>
       <div class="tab" data-tab="sync">Sync</div>
+      <div class="tab" data-tab="family">Family</div>
       <div class="tab" data-tab="data">Data</div>
     </div>
 
@@ -506,6 +537,33 @@ tbody tr:hover{background:var(--sub)}
         <button class="btn primary" id="btnGConnect">Connect Google Drive</button>
         <button class="btn hidden" id="btnGSyncNow">Sync now</button>
         <button class="btn danger hidden" id="btnGDisconnect">Disconnect</button>
+      </div>
+    </div>
+
+    <div id="tabFamily" class="settings-list hidden">
+      <!-- child: let a parent see this -->
+      <div id="famChild">
+        <p style="font-size:12px;color:var(--t4);margin:0 0 10px">
+          Let a parent see your spending and what you are owed. They get to read it, not change it.
+          Your Google Drive has to be connected first.
+        </p>
+        <div class="famrow">
+          <input type="email" id="famParentEmail" placeholder="parent@gmail.com" autocomplete="off">
+          <button class="btn primary" id="btnFamShare">Share</button>
+        </div>
+        <div id="famSharedList"></div>
+      </div>
+      <!-- parent: watch the children -->
+      <div id="famParent" class="hidden">
+        <p style="font-size:12px;color:var(--t4);margin:0 0 10px">
+          Add each child's file once, after they have shared it with you. You see what they
+          have spent and what they are owed; nothing you do here changes their data.
+        </p>
+        <div class="sync-actions">
+          <button class="btn primary" id="btnFamAdd">Add a child</button>
+          <button class="btn" id="btnFamRefresh">Refresh now</button>
+        </div>
+        <div id="famKidList"></div>
       </div>
     </div>
 
@@ -649,7 +707,7 @@ function currentCurrency(){ return currencyInfo(state.settings.currency, state.s
 
 // Must match the number in sw.js's cache name, so Settings can show which
 // build is really running — a stale service worker used to hide that.
-var APP_BUILD = 14;
+var APP_BUILD = 15;
 
 var STORE_KEY = "spendcue_data_v1";
 var state = load();
@@ -1560,6 +1618,7 @@ function renderAll(){
   renderSummary();
   renderDonut();
   renderTrend();
+  renderFamilyPanel();
   renderPots();
   renderDues();
   renderBudgets();
@@ -1811,6 +1870,7 @@ function openSettings(){
   $("setProfile").value = isKid() ? "kid" : "grown";
   $("setPhone").value = state.settings.parentPhone || "";
   $("setBuild").textContent = "Build " + APP_BUILD;
+  renderFamily();
   $("setTheme").value = state.settings.theme;
   $("setLink").checked = state.settings.linkSpending !== false;
   renderBudgetSettings();
@@ -1826,7 +1886,7 @@ document.querySelectorAll(".tab").forEach(function(tab){
   tab.addEventListener("click", function(){
     document.querySelectorAll(".tab").forEach(function(t){ t.classList.remove("active"); });
     tab.classList.add("active");
-    ["general","budgets","sync","data"].forEach(function(name){
+    ["general","budgets","sync","family","data"].forEach(function(name){
       $("tab"+name.charAt(0).toUpperCase()+name.slice(1)).classList.toggle("hidden", name !== tab.dataset.tab);
     });
   });
@@ -1841,6 +1901,7 @@ $("setProfile").addEventListener("change", function(){
   counterCat = "";                       // the old chip belongs to the other category set
   save();
   populateCategorySelects();
+  renderFamily();
   renderAll();
 });
 function renderCurrencyPicker(){
@@ -2172,6 +2233,220 @@ function gDisconnect(){
   toast("Disconnected from Google Drive.");
 }
 
+/* ---------- family link ----------
+   drive.file only reaches files this app created for the signed-in person, so
+   a file shared *to* someone stays invisible until they open it with the app.
+   That asymmetry decides the shape: the child shares their own file (the app
+   created it, so it can grant the permission), and the parent attaches it once
+   through Google's Picker, which is what grants per-file access on their side.
+   The parent only ever reads. Nothing here writes to a child's file. */
+
+// Needed by the Picker in addition to the OAuth token; a Cloud Console API key,
+// restricted to the Picker API. Public by design, like the client id.
+var GOOGLE_API_KEY = "YOUR_GOOGLE_API_KEY";
+
+function famShares(){ return state.settings.sharedWith || (state.settings.sharedWith = []); }
+function famKids(){ return state.settings.family || (state.settings.family = []); }
+
+/* --- child side: hand a parent read access --- */
+function famShareWith(email){
+  email = (email || "").trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ toast("That does not look like an email address."); return; }
+  if (!gState.connected || !gState.fileId){ toast("Connect your Google Drive first, under Sync."); return; }
+  if (famShares().indexOf(email) !== -1){ toast("Already shared with " + email + "."); return; }
+  gApiFetch("https://www.googleapis.com/drive/v3/files/" + gState.fileId + "/permissions?sendNotificationEmail=true", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role: "reader", type: "user", emailAddress: email })
+  }).then(function(){
+    famShares().push(email);
+    save(); renderFamily();
+    toast("Shared with " + email + ".");
+  }).catch(function(err){
+    console.error(err);
+    toast("Could not share. Check the address and that Drive is connected.");
+  });
+}
+function famUnshare(email){
+  if (!gState.connected || !gState.fileId){ toast("Connect your Google Drive first."); return; }
+  // find the permission id for that address, then remove it
+  gApiFetch("https://www.googleapis.com/drive/v3/files/" + gState.fileId + "/permissions?fields=permissions(id,emailAddress)")
+    .then(function(res){
+      var hit = (res.permissions || []).find(function(x){ return x.emailAddress === email; });
+      if (!hit) return null;
+      return gApiFetch("https://www.googleapis.com/drive/v3/files/" + gState.fileId + "/permissions/" + hit.id, { method: "DELETE" });
+    })
+    .catch(function(e){ console.error(e); })
+    .then(function(){
+      state.settings.sharedWith = famShares().filter(function(x){ return x !== email; });
+      save(); renderFamily();
+      toast("Stopped sharing with " + email + ".");
+    });
+}
+
+/* --- parent side: attach a child's file through the Picker --- */
+var pickerReady = false;
+function famLoadPicker(cb){
+  if (pickerReady) return cb();
+  var go = function(){ gapi.load("picker", function(){ pickerReady = true; cb(); }); };
+  if (window.gapi && window.gapi.load) return go();
+  var sc = document.createElement("script");
+  sc.src = "https://apis.google.com/js/api.js";
+  sc.onload = go;
+  sc.onerror = function(){ toast("Could not load Google's file picker."); };
+  document.head.appendChild(sc);
+}
+function famAddKid(){
+  if (GOOGLE_API_KEY.indexOf("YOUR_GOOGLE_API_KEY") === 0){
+    toast("Add a Google API key first — see Settings.");
+    return;
+  }
+  if (!gState.connected || !gState.accessToken){ toast("Connect your own Google Drive first, under Sync."); return; }
+  famLoadPicker(function(){
+    var view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+      .setMimeTypes("application/json")
+      .setIncludeFolders(false)
+      .setOwnedByMe(false);          // the child owns it; it arrives as "shared with me"
+    new google.picker.PickerBuilder()
+      .setOAuthToken(gState.accessToken)
+      .setDeveloperKey(GOOGLE_API_KEY)
+      .addView(view)
+      .setCallback(function(d){
+        if (d.action !== google.picker.Action.PICKED) return;
+        var f = d.docs[0];
+        if (famKids().some(function(k){ return k.fileId === f.id; })){ toast("That child is already added."); return; }
+        famKids().push({ fileId: f.id, label: f.name || "Child", email: "", data: null, readAt: null });
+        save(); renderFamily(); famRefresh();
+      })
+      .build().setVisible(true);
+  });
+}
+
+/* --- parent side: read each child's file, never write --- */
+function famRefresh(){
+  var kids = famKids();
+  if (!kids.length) return Promise.resolve();
+  if (!gState.connected){ toast("Connect your Google Drive first, under Sync."); return Promise.resolve(); }
+  return Promise.all(kids.map(function(k){
+    return gApiFetch("https://www.googleapis.com/drive/v3/files/" + k.fileId + "?alt=media")
+      .then(function(d){
+        if (d && Array.isArray(d.expenses)){ k.data = d; k.readAt = new Date().toISOString(); k.error = ""; }
+      })
+      .catch(function(e){ k.error = "Could not read this one"; console.error(e); });
+  })).then(function(){ save(); renderFamily(); renderFamilyPanel(); });
+}
+
+// Figures for one child, worked out from their own records with this app's
+// own rules, so the parent sees the same numbers the child does.
+function famFigures(d){
+  if (!d || !Array.isArray(d.expenses)) return null;
+  var b = monthBounds(view.year, view.month);
+  var inMonth = function(e){ return e.date >= b.from && e.date <= b.to; };
+  var k = function(e){ return e.kind || "expense"; };
+  var spent = 0, got = 0, owed = 0, dues = [], recent = [];
+  d.expenses.forEach(function(e){
+    if (k(e) === "due"){ owed += Number(e.amount) || 0; dues.push(e); return; }
+    if (!inMonth(e)) return;
+    if (k(e) === "income") got += Number(e.amount) || 0; else spent += Number(e.amount) || 0;
+  });
+  recent = d.expenses.filter(function(e){ return k(e) !== "due"; })
+    .sort(function(a, b2){ return a.date < b2.date ? 1 : -1; }).slice(0, 5);
+  var cur = (d.settings && d.settings.currency) || state.settings.currency;
+  return { spent: spent, got: got, owed: owed, dues: dues, recent: recent, currency: cur };
+}
+function famMoney(n, cur){
+  n = Number(n) || 0;
+  return cur + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+$("btnFamShare").addEventListener("click", function(){ famShareWith($("famParentEmail").value); });
+$("famParentEmail").addEventListener("keydown", function(ev){
+  if (ev.key === "Enter"){ ev.preventDefault(); famShareWith(this.value); }
+});
+$("btnFamAdd").addEventListener("click", famAddKid);
+$("btnFamRefresh").addEventListener("click", function(){
+  toast("Checking…");
+  famRefresh();
+});
+
+function renderFamily(){
+  var kid = isKid();
+  $("famChild").classList.toggle("hidden", !kid);
+  $("famParent").classList.toggle("hidden", kid);
+
+  $("famSharedList").innerHTML = famShares().length
+    ? famShares().map(function(em){
+        return '<div class="famitem"><div class="fi-main">' + escapeHtml(em) +
+          '<div class="fi-sub">can read your entries</div></div>' +
+          '<button data-unshare="' + escapeHtml(em) + '" title="Stop sharing">\u2715</button></div>';
+      }).join("")
+    : '<div class="kidempty">Not shared with anyone yet.</div>';
+  $("famSharedList").querySelectorAll("[data-unshare]").forEach(function(b){
+    b.addEventListener("click", function(){ famUnshare(b.dataset.unshare); });
+  });
+
+  $("famKidList").innerHTML = famKids().length
+    ? famKids().map(function(k, i){
+        return '<div class="famitem"><div class="fi-main">' + escapeHtml(k.label) +
+          '<div class="fi-sub">' + (k.error ? escapeHtml(k.error)
+            : k.readAt ? "read " + gRelTime(k.readAt) : "not read yet") + '</div></div>' +
+          '<button data-rmkid="' + i + '" title="Remove">\u2715</button></div>';
+      }).join("")
+    : '<div class="kidempty">No children added yet.</div>';
+  $("famKidList").querySelectorAll("[data-rmkid]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var k = famKids()[Number(b.dataset.rmkid)];
+      if (!k || !confirm("Stop watching " + k.label + "? Their own data is untouched.")) return;
+      famKids().splice(Number(b.dataset.rmkid), 1);
+      save(); renderFamily(); renderFamilyPanel();
+    });
+  });
+}
+
+// The read-only family panel on the main screen, for a grown-up only.
+function renderFamilyPanel(){
+  var panel = $("famPanel"), out = $("famPanelList");
+  var kids = famKids();
+  if (isKid() || !kids.length){ panel.style.display = "none"; return; }
+  panel.style.display = "";
+  var owedAll = 0;
+  kids.forEach(function(k){ var f = famFigures(k.data); if (f) owedAll += f.owed; });
+  $("famPanelHint").textContent = kids.length + " child" + (kids.length === 1 ? "" : "ren") +
+    (owedAll > 0 ? " \u00b7 " + fmt(owedAll) + " owed in all" : "");
+
+  out.innerHTML = kids.map(function(k){
+    var f = famFigures(k.data);
+    if (!f){
+      return '<div class="kidcard"><div class="kidtop"><span class="kidname">' + escapeHtml(k.label) + '</span></div>' +
+        '<div class="kidempty">' + (k.error ? escapeHtml(k.error) : "Nothing read yet \u2014 tap Refresh in Settings \u203a Family.") + '</div></div>';
+    }
+    var cur = f.currency;
+    return '<div class="kidcard">' +
+      '<div class="kidtop"><span class="kidname">' + escapeHtml(k.label) + '</span>' +
+        '<span class="kidwhen">' + (k.readAt ? "as of " + gRelTime(k.readAt) : "") + '</span></div>' +
+      '<div class="kidfigs">' +
+        '<div class="kidfig"><b>' + famMoney(f.spent, cur) + '</b><span>spent this month</span></div>' +
+        '<div class="kidfig"><b>' + famMoney(f.got, cur) + '</b><span>got this month</span></div>' +
+        (f.owed > 0 ? '<div class="kidfig owed"><b>' + famMoney(f.owed, cur) + '</b><span>still owed</span></div>' : '') +
+      '</div>' +
+      (f.dues.length ? '<div class="kidlines">' + f.dues.slice(0, 4).map(function(d){
+          var late = d.date < todayStr();
+          return '<div class="kidline"><span>' + escapeHtml(catById(d.category).name) +
+            (d.note ? " \u00b7 " + escapeHtml(d.note) : "") +
+            (late ? ' <span style="color:var(--red)">overdue</span>' : '') +
+            '</span><span class="n">' + famMoney(d.amount, cur) + '</span></div>';
+        }).join("") + '</div>' : '') +
+      (f.recent.length ? '<div class="kidlines" style="margin-top:6px;border-top:1px solid var(--bdr);padding-top:6px">' +
+        f.recent.map(function(e){
+          var inc = (e.kind || "expense") === "income";
+          return '<div class="kidline"><span>' + escapeHtml(catById(e.category).name) +
+            (e.note ? " \u00b7 " + escapeHtml(e.note) : "") + ' <span style="color:var(--t4)">' + friendlyDate(e.date) + '</span></span>' +
+            '<span class="n" style="color:' + (inc ? "var(--grn)" : "inherit") + '">' + (inc ? "+" : "\u2212") + famMoney(e.amount, cur) + '</span></div>';
+        }).join("") + '</div>' : '<div class="kidempty">No entries yet.</div>') +
+      '</div>';
+  }).join("");
+}
+
 $("btnWhats").addEventListener("click", sendOnWhatsApp);
 $("btnGConnect").addEventListener("click", gConnect);
 $("btnGSyncNow").addEventListener("click", function(){ gPushNow().then(function(){ toast("Synced."); }); });
@@ -2306,6 +2581,7 @@ populateCategorySelects();
 applyTheme();
 renderAll();
 renderInstallUi();
+if (famKids().length) setTimeout(function(){ if (gState.connected) famRefresh(); }, 2500);
 
 if ("serviceWorker" in navigator){
   window.addEventListener("load", function(){
