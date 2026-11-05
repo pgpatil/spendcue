@@ -235,6 +235,9 @@ tbody tr:hover{background:var(--sub)}
 .btn.wa{display:block;width:100%;margin-top:12px;border-color:#25D366;color:#128C4A;background:#eafaf0;font-weight:600}
 .btn.wa:hover{background:#25D366;color:#fff;border-color:#25D366}
 :root[data-theme="dark"] .btn.wa,:root:not([data-theme="light"]) .btn.wa{background:#15321f;color:#6ee7a0;border-color:#1f7a45}
+.btn-wa1{border:1px solid #25D366;background:#eafaf0;color:#128C4A;border-radius:8px;width:30px;height:28px;font-size:13px;flex:none;line-height:1}
+.btn-wa1:hover{background:#25D366;color:#fff}
+:root[data-theme="dark"] .btn-wa1,:root:not([data-theme="light"]) .btn-wa1{background:#15321f;color:#6ee7a0;border-color:#1f7a45}
 .btn-got{border:1px solid var(--grn);background:var(--grn-l);color:var(--grn);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;white-space:nowrap}
 .btn-got:hover{background:var(--grn);color:#fff}
 .duedrop{border:1px solid var(--bdr);background:var(--card);color:var(--t4);border-radius:8px;width:28px;height:28px;flex:none}
@@ -946,27 +949,31 @@ function claimBack(id){
 /* ---------- send a summary on WhatsApp ----------
    Opens WhatsApp with the message ready; nothing is sent without the child
    tapping send, and no number is needed unless one has been saved. */
+function owedHeading(){ return isKid() ? "Money I am still owed" : "Money still owed to me"; }
+function dueLine(d){
+  var late = d.date < todayStr();
+  return fmt(d.amount) + " \u2014 " + catById(d.category).name +
+    (d.note ? " (" + d.note + ")" : "") +
+    " \u2014 " + (late ? "overdue since " : "expected ") + friendlyDate(d.date);
+}
+// One item on its own — for chasing a single thing without listing everything.
+function owedOne(d){
+  if (!d) return null;
+  return owedHeading() + "\n\n" + dueLine(d);
+}
 function owedSummary(){
   var dues = outstandingDues().slice().sort(function(a,b){ return a.date < b.date ? -1 : 1; });
   if (!dues.length) return null;
-  var t = todayStr();
-  var lines = dues.map(function(d){
-    var late = d.date < t;
-    return "\u2022 " + fmt(d.amount) + " \u2014 " + catById(d.category).name +
-      (d.note ? " (" + d.note + ")" : "") +
-      " \u2014 " + (late ? "overdue since " : "expected ") + friendlyDate(d.date);
-  });
   var spent = sumOf(expensesInMonth(view.year, view.month));
   var got = sumOf(incomeInMonth(view.year, view.month));
-  return (isKid() ? "Money I am still owed" : "Money still owed to me") + "\n" +
+  return owedHeading() + "\n" +
     MONTH_NAMES[view.month] + " " + view.year + "\n\n" +
-    lines.join("\n") + "\n\n" +
+    dues.map(function(d){ return "\u2022 " + dueLine(d); }).join("\n") + "\n\n" +
     "Total: " + fmt(sumOf(dues)) + "\n\n" +
-    "This month: got " + fmt(got) + ", spent " + fmt(spent) + ".\n" +
-    "\u2014 sent from Spendcue";
+    "This month: got " + fmt(got) + ", spent " + fmt(spent) + ".";
 }
-function sendOnWhatsApp(){
-  var text = owedSummary();
+function sendOnWhatsApp(text){
+  if (typeof text !== "string") text = owedSummary();
   if (!text){ toast("Nothing is outstanding right now."); return; }
   var num = (state.settings.parentPhone || "").replace(/[^0-9]/g, "");
   var url = "https://wa.me/" + num + "?text=" + encodeURIComponent(text);
@@ -988,10 +995,17 @@ function renderDues(){
         (d.note ? ' · <span style="color:var(--t3)">' + escapeHtml(d.note) + '</span>' : '') + '</div>' +
         '<div class="duewhen' + (late ? ' late' : '') + '">' + (late ? "overdue since " : "expected ") + friendlyDate(d.date) + '</div></div>' +
       '<span class="dueamt">' + fmt(d.amount) + '</span>' +
+      '<button class="btn-wa1" data-wa1="' + d.id + '" title="Ask about just this one on WhatsApp">\u27a4</button>' +
       '<button class="btn-got" data-got="' + d.id + '">Received</button>' +
       '<button class="duedrop" data-duedrop="' + d.id + '" title="Remove">✕</button></div>';
   }).join("");
 
+  out.querySelectorAll("[data-wa1]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var d = state.expenses.find(function(x){ return x.id === b.dataset.wa1; });
+      sendOnWhatsApp(owedOne(d));
+    });
+  });
   out.querySelectorAll("[data-got]").forEach(function(b){
     b.addEventListener("click", function(){ markReceived(b.dataset.got); });
   });
