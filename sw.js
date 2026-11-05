@@ -1,4 +1,4 @@
-const C = 'spendcue-v13';
+const C = 'spendcue-v14';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
@@ -13,15 +13,23 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+// Network first, cache only as the offline fallback. Serving the cache first
+// meant every visit showed the previous version and only fetched the new one
+// for next time, so a change was always one reload behind.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // Only this app's own files. Anything else — the Google sign-in script, the
+  // Drive API — must never be stored: those responses carry the user's data,
+  // and nothing here would clear them on disconnect.
+  if (new URL(e.request.url).origin !== self.location.origin) return;
+
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const fetchPromise = fetch(e.request).then(res => {
-        caches.open(C).then(c => c.put(e.request, res.clone()));
+    fetch(e.request)
+      .then(res => {
+        const copy = res.clone();
+        caches.open(C).then(c => c.put(e.request, copy)).catch(() => {});
         return res;
-      }).catch(() => cached);
-      return cached || fetchPromise;
-    })
+      })
+      .catch(() => caches.match(e.request).then(m => m || caches.match('./index.html')))
   );
 });

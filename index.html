@@ -480,6 +480,9 @@ tbody tr:hover{background:var(--sub)}
       <div class="settings-row hidden" id="setCurCustomRow"><span class="name">Symbol to use</span>
         <input type="text" id="setCurCustom" maxlength="6" placeholder="e.g. kr" style="width:90px;text-align:center;border:1px solid var(--bdr2);background:var(--bg);color:var(--t1);border-radius:8px;padding:7px">
       </div>
+      <div class="settings-row"><span class="name">Version</span>
+        <span style="font-size:12.5px;color:var(--t4)" id="setBuild">—</span>
+      </div>
       <div class="settings-row"><span class="name">Theme</span>
         <select id="setTheme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
       </div>
@@ -643,6 +646,10 @@ function currencyInfo(sym, code){
   return null;
 }
 function currentCurrency(){ return currencyInfo(state.settings.currency, state.settings.currencyCode); }
+
+// Must match the number in sw.js's cache name, so Settings can show which
+// build is really running — a stale service worker used to hide that.
+var APP_BUILD = 14;
 
 var STORE_KEY = "spendcue_data_v1";
 var state = load();
@@ -1803,6 +1810,7 @@ function openSettings(){
   renderCurrencyPicker();
   $("setProfile").value = isKid() ? "kid" : "grown";
   $("setPhone").value = state.settings.parentPhone || "";
+  $("setBuild").textContent = "Build " + APP_BUILD;
   $("setTheme").value = state.settings.theme;
   $("setLink").checked = state.settings.linkSpending !== false;
   renderBudgetSettings();
